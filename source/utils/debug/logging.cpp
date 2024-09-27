@@ -45,7 +45,7 @@ bool Logger::Init()
         return true;
     }
 
-    s_defaultLogger->set_pattern(DEFAULT_LOGGER_PATTERN);
+    s_pDefaultLogger->set_pattern(DEFAULT_LOGGER_PATTERN);
 
     LoggerSystemInitInfo initInfo = ParseLoggerSysInitInfoJson(paths::AM_LOGGER_CONFIG_FILE_PATH);
 
@@ -58,6 +58,7 @@ bool Logger::Init()
 void Logger::Terminate() noexcept
 {
     s_pInst = nullptr;
+    s_pDefaultLogger = nullptr;
 }
 
 

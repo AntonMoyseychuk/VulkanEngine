@@ -66,7 +66,7 @@ private:
     static inline const std::string DEFAULT_LOGGER_PATTERN = "[%^%l%$] [%n]: %v";
 
     static inline std::unique_ptr<Logger> s_pInst = nullptr;
-    static inline std::shared_ptr<spdlog::logger> s_defaultLogger = spdlog::stdout_color_st(DEFAULT_LOGGER_NAME);
+    static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = spdlog::stdout_color_st(DEFAULT_LOGGER_NAME);
 
 private:
     std::vector<std::shared_ptr<spdlog::logger>> m_loggers;

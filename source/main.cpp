@@ -6,10 +6,13 @@
 int main(int argc, char* argv[])
 {
 #if defined(AM_LOGGING_ENABLED)
-    Logger::Init();
+    if (!Logger::Init()) {
+        AM_LOG_WARN("Unexpected problems occurred during the initialization of the log system. Using default logger.");
+    }
 #endif
     
     if (!VulkanApplication::Init()) {
+        AM_LOG_ERROR("Unexpected problems occurred during the initialization of the application. Application is terminated.");
         exit(-1);
     }
     

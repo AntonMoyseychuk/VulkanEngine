@@ -3,7 +3,7 @@
 template <typename... Args>
 inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
 
     const std::string message = fmt::format(format, std::forward<Args>(args)...);
     
@@ -20,7 +20,7 @@ inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *fil
 template <typename... Args>
 inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
 
     const std::string message = fmt::format(format, std::forward<Args>(args)...);
     
@@ -37,7 +37,7 @@ inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *fil
 template <typename... Args>
 inline void Logger::Error(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
 
     const std::string message = fmt::format(format, std::forward<Args>(args)...);
     
