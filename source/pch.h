@@ -34,3 +34,4 @@
 #include "core.h"
 #include "config.h"
 #include "utils/debug/logging.h"
+#include "utils/json/json.h"

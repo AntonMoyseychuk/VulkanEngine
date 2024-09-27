@@ -23,7 +23,7 @@ class VulkanApplication
 public:
     static VulkanApplication& Instance() noexcept;
     
-    static bool Init(const VulkanAppInitInfo& appInitInfo) noexcept;
+    static bool Init() noexcept;
     static void Terminate() noexcept;
 
     VulkanApplication(const VulkanApplication& app) = delete;

@@ -12,6 +12,7 @@ set(CODE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/source)
 set(GLFW_DIR ${THIRD_PARTY_DIR}/glfw)
 set(GLM_DIR ${THIRD_PARTY_DIR}/glm)
 set(NLOHMAN_JSON_DIR ${THIRD_PARTY_DIR}/nlohmann_json)
+set(SPDLOG_DIR ${THIRD_PARTY_DIR}/spdlog)
 
 message("-- PROJECT_SOURCE_DIR = ${AM_PROJECT_SOURCE_DIR}")
 message("-- THIRD_PARTY_DIR    = ${THIRD_PARTY_DIR}")
@@ -19,11 +20,14 @@ message("-- CODE_SOURCE_DIR    = ${CODE_SOURCE_DIR}")
 message("-- GLFW_DIR           = ${GLFW_DIR}")
 message("-- GLM_DIR            = ${GLM_DIR}")
 message("-- NLOHMAN_JSON_DIR   = ${NLOHMAN_JSON_DIR}")
+message("-- SPDLOG_DIR         = ${SPDLOG_DIR}")
 
 add_subdirectory(${GLFW_DIR})
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(${NLOHMAN_JSON_DIR})
+
+add_subdirectory(${SPDLOG_DIR})
 
 
 file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS 
@@ -39,17 +43,29 @@ if(Vulkan_FOUND)
     message("-- Vulkan_VERSION      = ${Vulkan_VERSION}")
     message("-- Vulkan_INCLUDE_DIRS = ${Vulkan_INCLUDE_DIRS}")
     message("-- Vulkan_LIBRARIES    = ${Vulkan_LIBRARIES}")
+
+    target_compile_definitions(vulkan_sandbox 
+        PRIVATE AM_GRAPHICS_API_VULKAN)
 else()
     message(FATAL_ERROR "Vulkan not found!")
 endif()
 
 target_include_directories(vulkan_sandbox 
-    PRIVATE ${GLM_DIR} 
-    PRIVATE ${Vulkan_INCLUDE_DIRS})
+    PRIVATE ${Vulkan_INCLUDE_DIRS}
+    PRIVATE ${GLFW_INCLUDE_DIRS}
+    PRIVATE ${GLM_DIR}
+    PRIVATE ${nlohmann_json_INCLUDE_DIRS}
+    PRIVATE ${spdlog_INCLUDE_DIRS})
+
+target_link_directories(vulkan_sandbox
+    PRIVATE ${spdlog_LIBRARY_DIRS})
 
 target_link_libraries(vulkan_sandbox 
+    PRIVATE ${Vulkan_LIBRARIES}
     PRIVATE glfw 
-    PRIVATE ${Vulkan_LIBRARIES} 
-    PRIVATE nlohmann_json::nlohmann_json)
+    PRIVATE nlohmann_json::nlohmann_json
+    PRIVATE spdlog::spdlog)
 
-target_compile_definitions(vulkan_sandbox PRIVATE AM_PROJECT_SOURCE_DIR="${AM_PROJECT_SOURCE_DIR}")
+target_compile_definitions(vulkan_sandbox 
+    PRIVATE AM_PROJECT_SOURCE_DIR="${AM_PROJECT_SOURCE_DIR}"
+    PRIVATE SPDLOG_COMPILED_LIB)

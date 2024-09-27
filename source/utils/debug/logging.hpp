@@ -1,30 +1,51 @@
-#include <utility>
+#include "logging.h"
 
 template <typename... Args>
-inline void LogError(const char *file, const char *function, uint64_t line, const char *format, Args &&...args) noexcept
+inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    AM_ERROR_MSG("[ERROR]: ");
-    AM_ERROR_MSG(format, std::forward<Args>(args)...);
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
 
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stderr, "  [%s -> %s -> %u]\n", file, function, line);
+    const std::string message = fmt::format(format, std::forward<Args>(args)...);
+    
+    if (printMessageOnly) {
+        pLogger->info(message);
+    } else {
+        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
+        
+        pLogger->info(format0);
+    }
 }
 
 
 template <typename... Args>
-inline void LogWarning(const char *file, const char *function, uint64_t line, const char *format, Args &&...args) noexcept
+inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    AM_WARNING_MSG("[WARNING]: ");
-    AM_WARNING_MSG(format, std::forward<Args>(args)...);
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
 
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "  [%s -> %s -> %u]\n", file, function, line);
+    const std::string message = fmt::format(format, std::forward<Args>(args)...);
+    
+    if (printMessageOnly) {
+        pLogger->warn(message);
+    } else {
+        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
+        
+        pLogger->warn(format0);
+    }
 }
 
 
 template <typename... Args>
-inline void LogInfo(const char *file, const char *function, uint64_t line, const char *format, Args &&...args) noexcept
+inline void Logger::Error(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
 {
-    AM_INFO_MSG("[INFO]: ");
-    AM_INFO_MSG(format, std::forward<Args>(args)...);
+    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_defaultLogger;
 
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "  [%s -> %s -> %u]\n", file, function, line);
+    const std::string message = fmt::format(format, std::forward<Args>(args)...);
+    
+    if (printMessageOnly) {
+        pLogger->error(message);
+    } else {
+        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
+        
+        pLogger->error(format0);
+    }
 }

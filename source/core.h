@@ -7,6 +7,11 @@
 #endif
 
 
+#if !defined(AM_GRAPHICS_API_VULKAN)
+  #error Currently, only Vulkan is supported
+#endif
+
+
 #if defined(NDEBUG)
   #define AM_RELEASE
 #else

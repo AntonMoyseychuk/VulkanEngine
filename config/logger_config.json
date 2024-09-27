@@ -1,0 +1,18 @@
+{
+    "loggers": {
+        "common": {
+            "name": "common",
+            "pattern": "[%^%l%$] [%n]: %v"
+        },
+
+        "graphics_api": {
+            "name": "vulkan",
+            "pattern": "[%^%l%$] [%n]: %v"
+        },
+
+        "window_system": {
+            "name": "glfw",
+            "pattern": "[%^%l%$] [%n]: %v"
+        }
+    }
+}

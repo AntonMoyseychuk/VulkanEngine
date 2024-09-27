@@ -25,14 +25,14 @@ inline const char* GetExtensionName(const VkExtensionProperties& extension) noex
 template<typename ExtT, typename... Args>
 static void LogVulkanExtensions(const ExtT* extensions, size_t extensionsCount, const char* format, Args&&... args)
 {
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format, std::forward<Args>(args)...);
+    // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format, std::forward<Args>(args)...);
 
     if (!extensions) {
         return;
     }
     
     for (size_t i = 0; i < extensionsCount; ++i) {
-        AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s;\n", GetExtensionName(extensions[i]));
+        // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s;\n", GetExtensionName(extensions[i]));
     }
 }
 
@@ -40,34 +40,53 @@ static void LogVulkanExtensions(const ExtT* extensions, size_t extensionsCount, 
 template<typename... Args>
 static void LogVulkanValidationLayers(const VkLayerProperties* layers, size_t layersCount, const char* format, Args&&... args)
 {
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format, std::forward<Args>(args)...);
+    // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format, std::forward<Args>(args)...);
 
     if (!layers) {
         return;
     }
     
     for (size_t i = 0; i < layersCount; ++i) {
-        AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s", layers[i].layerName);
-        AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_YELLOW, stdout, " -> %s;\n", layers[i].description);
+        // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s", layers[i].layerName);
+        // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_YELLOW, stdout, " -> %s;\n", layers[i].description);
     }
 }
 
 static void LogVulkanValidationLayers(const std::string* layers, size_t layersCount, const char* format)
 {
-    AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format);
+    // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, format);
 
     if (!layers) {
         return;
     }
     
     for (size_t i = 0; i < layersCount; ++i) {
-        AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s;\n", layers[i].c_str());
+        // AM_PRINT_FORMATED_COLORED_TEXT(COLOR_CODE_WHITE, stdout, "\t- %s;\n", layers[i].c_str());
     }
 }
 #else
     #define LogVulkanExtensions(extensions, extensionsCount, format, ...)
     #define LogVulkanValidationLayers(layers, layersCount, format, ...)
 #endif
+
+
+static std::optional<VulkanAppInitInfo> ParseVkAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
+{
+    std::optional<nlohmann::json> jsonOpt = ParseJson(pathToJson);
+    if (!jsonOpt.has_value()) {
+        return {};
+    }
+
+    const nlohmann::json& json = jsonOpt.value();
+
+    VulkanAppInitInfo appInitInfo = {};
+    json["window"]["title"].get_to(appInitInfo.title);
+    json["window"]["width"].get_to(appInitInfo.width);
+    json["window"]["height"].get_to(appInitInfo.height);
+    json["window"]["resizable"].get_to(appInitInfo.resizable);
+
+    return appInitInfo;
+}
 
 
 struct GetJsonResult
@@ -104,11 +123,11 @@ static std::vector<std::string> ParseJsonArray(const std::filesystem::path& path
 
     switch (jsonRes.errorCode) {
         case GetJsonResult::GetJsonResultErrorReason_FILE_NOT_EXISTS:
-            AM_WARNING_MSG("\n[WARNING]: File \"%s\" doesn't exist\n", pathToJson.string().c_str());
+            // AM_WARNING_MSG("\n[WARNING]: File \"%s\" doesn't exist\n", pathToJson.string().c_str());
             break;
 
         case GetJsonResult::GetJsonResultErrorReason_FAILED_TO_OPEN_FILE:
-            AM_WARNING_MSG("\n[WARNING]: Failed to open file \"%s\"\n", pathToJson.string().c_str());
+            // AM_WARNING_MSG("\n[WARNING]: Failed to open file \"%s\"\n", pathToJson.string().c_str());
             break;
 
         case GetJsonResult::GetJsonResultErrorReason_NO_ERROR:
@@ -187,7 +206,7 @@ static std::vector<std::string> GetVkExtensions() noexcept
         }
 
         if (!extFound) {
-            AM_WARNING_MSG("[WARNING]: Vulkan extension %s was not found!\n", requiredExt.c_str());
+            // AM_WARNING_MSG("[WARNING]: Vulkan extension %s was not found!\n", requiredExt.c_str());
         }
     }
 
@@ -224,16 +243,23 @@ VulkanApplication& VulkanApplication::Instance() noexcept
 }
 
 
-bool VulkanApplication::Init(const VulkanAppInitInfo &appInitInfo) noexcept
+bool VulkanApplication::Init() noexcept
 {
     if (s_isAppInitialized) {
-        AM_WARNING_MSG("[APP WARNING]: Application is already initialized\n");
+        // AM_WARNING_MSG("[APP WARNING]: Application is already initialized\n");
         return true;
     }
 
+    std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseVkAppInitInfoJson(paths::AM_PROJECT_CONFIG_FILE_PATH);
+    if (!appInitInfoOpt.has_value()) {
+        return false;
+    }
+
+    const VulkanAppInitInfo& appInitInfo = appInitInfoOpt.value();
+
 #if defined(AM_LOGGING_ENABLED)
     glfwSetErrorCallback([](int errorCode, const char* description) -> void {
-        AM_ERROR_MSG("-- [GLFW ERROR]: %s (code: %d)\n", description, errorCode);
+        // AM_ERROR_MSG("-- [GLFW ERROR]: %s (code: %d)\n", description, errorCode);
     });
 #endif
     
@@ -303,7 +329,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     LogVulkanExtensions(extensionNames.data(), extensionNames.size(), "\n[INFO]: Final Vulkan included extensions:\n");
     
     if (extensionNames.empty()) {
-        AM_LOG_WARNING("\n[WARNING]: There are no required extensions or they are unavailable\n");
+        // AM_LOG_WARNING("\n[WARNING]: There are no required extensions or they are unavailable\n");
 
         instCreateInfo.enabledExtensionCount = 0;
         instCreateInfo.ppEnabledExtensionNames = nullptr;
