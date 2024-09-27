@@ -1,0 +1,9 @@
+{
+    "validation_layers": [
+        "VK_LAYER_KHRONOS_validation"
+    ],
+
+    "extensions": [
+        
+    ]
+}

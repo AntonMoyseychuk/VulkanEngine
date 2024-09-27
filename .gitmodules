@@ -1,0 +1,9 @@
+[submodule "thirdparty/glfw"]
+	path = thirdparty/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "thirdparty/nlohmann_json"]
+	path = thirdparty/nlohmann_json
+	url = https://github.com/nlohmann/json.git
+[submodule "thirdparty/glm"]
+	path = thirdparty/glm
+	url = https://github.com/g-truc/glm.git
