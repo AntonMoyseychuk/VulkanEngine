@@ -53,6 +53,16 @@ AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_EXTENSIONS_COUNT = 64u;
 AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_VALIDATION_LAYERS_COUNT = 64u;
 
 
+#if defined(AM_LOGGING_ENABLED)
+struct VulkanDebugCallbackInitInfo
+{
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
+    VkDebugUtilsMessageTypeFlagsEXT messageType;
+    PFN_vkDebugUtilsMessengerCallbackEXT pCallback;
+};
+#endif
+
+
 AM_MAYBE_UNUSED static const nlohmann::json& GetOsBuildTypeSpecificJsonObj(const nlohmann::json& base) noexcept
 {
     const nlohmann::json& os = base[JSON_COMMON_CONFIG_OS_FIELD_NAME][JSON_COMMON_CONFIG_OS_NAME];
@@ -77,7 +87,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
         pLogger->Warn(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         pLogger->Error(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
-        // AM_DEBUG_BREAK();
+        AM_DEBUG_BREAK();
     } else {
         const std::string message = fmt::format("[UNKNOWN]: {}", pCallbackData->pMessage);
         pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, message.c_str());
@@ -366,7 +376,7 @@ VulkanApplication& VulkanApplication::Instance() noexcept
 
 bool VulkanApplication::Init() noexcept
 {
-    if (s_isAppInitialized) {
+    if (IsInitialized()) {
         AM_LOG_INFO("Application is already initialized");
         return true;
     }
@@ -399,12 +409,11 @@ bool VulkanApplication::Init() noexcept
         return false;
     }
 
-    if (!s_pAppInst->IsGlfwWindowCreated()) {
-        return false;
+    if (!s_pAppInst->IsInstanceInitialized()) {
+        Terminate();
     }
 
-    s_isAppInitialized = true;
-    return s_isAppInitialized;
+    return s_pAppInst != nullptr;
 }
 
 
@@ -414,6 +423,12 @@ void VulkanApplication::Terminate() noexcept
 
     TerminateVulkan();
     glfwTerminate();
+}
+
+
+bool VulkanApplication::IsInitialized() noexcept
+{
+    return s_pAppInst && s_pAppInst->IsInstanceInitialized();
 }
 
 
@@ -448,7 +463,7 @@ bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInf
 {
     VkDebugUtilsMessengerCreateInfoEXT createInfo = GetVkDebugUtilsMessengerCreateInfo(initInfo);
 
-    if (CreateDebugUtilsMessengerEXT(s_vulkanInst, &createInfo, nullptr, &s_vulkanDebugMessenger) != VK_SUCCESS) {
+    if (CreateDebugUtilsMessengerEXT(s_vulkanState.instance, &createInfo, nullptr, &s_vulkanState.debugMessenger) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan debug messenger creation failed");
         return false;
     }
@@ -459,7 +474,7 @@ bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInf
 
 void VulkanApplication::TerminateVulkanDebugCallback() noexcept
 {
-    DestroyDebugUtilsMessengerEXT(s_vulkanInst, s_vulkanDebugMessenger, nullptr);
+    DestroyDebugUtilsMessengerEXT(s_vulkanState.instance, s_vulkanState.debugMessenger, nullptr);
 }
 #endif
 
@@ -521,7 +536,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessangerCreateInfo;
 #endif
 
-    if (vkCreateInstance(&instCreateInfo, nullptr, &s_vulkanInst) != VK_SUCCESS) {
+    if (vkCreateInstance(&instCreateInfo, nullptr, &s_vulkanState.instance) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan instance creation failed");
         return false;
     }
@@ -542,7 +557,7 @@ void VulkanApplication::TerminateVulkan() noexcept
     TerminateVulkanDebugCallback();
 #endif
 
-    vkDestroyInstance(s_vulkanInst, nullptr);
+    vkDestroyInstance(s_vulkanState.instance, nullptr);
 }
 
 
@@ -553,6 +568,12 @@ VulkanApplication::VulkanApplication(const VulkanAppInitInfo &appInitInfo)
 
     m_glfwWindow = glfwCreateWindow((int)appInitInfo.width, (int)appInitInfo.height, appInitInfo.title.c_str(), nullptr, nullptr);
     AM_ASSERT_WINDOW(m_glfwWindow, "GLFW window creation failed");
+}
+
+
+bool VulkanApplication::IsInstanceInitialized() const noexcept
+{
+    return IsGlfwWindowCreated();
 }
 
 

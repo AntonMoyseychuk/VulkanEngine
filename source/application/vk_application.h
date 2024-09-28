@@ -19,12 +19,7 @@ struct VulkanAppInitInfo
 
 
 #if defined(AM_LOGGING_ENABLED)
-struct VulkanDebugCallbackInitInfo
-{
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
-    VkDebugUtilsMessageTypeFlagsEXT messageType;
-    PFN_vkDebugUtilsMessengerCallbackEXT pCallback;
-};
+struct VulkanDebugCallbackInitInfo;
 #endif
 
 
@@ -36,6 +31,8 @@ public:
     static bool Init() noexcept;
     static void Terminate() noexcept;
 
+    static bool IsInitialized() noexcept;
+
     VulkanApplication(const VulkanApplication& app) = delete;
     VulkanApplication& operator=(const VulkanApplication& app) = delete;
     
@@ -44,6 +41,7 @@ public:
 
     ~VulkanApplication();
 
+    
     void Run() noexcept;
     
 private:
@@ -58,17 +56,21 @@ private:
 private:
     VulkanApplication(const VulkanAppInitInfo& appInitInfo);
 
+    bool IsInstanceInitialized() const noexcept;
     bool IsGlfwWindowCreated() const noexcept;
 
 private:
-    static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
-    static inline VkInstance s_vulkanInst = {};
+    struct VulkanState
+    {
+        VkInstance instance;
 
-#if defined(AM_LOGGING_ENABLED)
-    static inline VkDebugUtilsMessengerEXT s_vulkanDebugMessenger = {};
-#endif
-    
-    static inline bool s_isAppInitialized = false;
+        #if defined(AM_LOGGING_ENABLED)
+            VkDebugUtilsMessengerEXT debugMessenger;
+        #endif
+    };
+
+    static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
+    static inline VulkanState s_vulkanState = {};
 
 private:
     GLFWwindow* m_glfwWindow = nullptr;
