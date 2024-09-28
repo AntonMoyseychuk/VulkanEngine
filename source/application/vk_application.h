@@ -18,6 +18,16 @@ struct VulkanAppInitInfo
 };
 
 
+#if defined(AM_LOGGING_ENABLED)
+struct VulkanDebugCallbackInitInfo
+{
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
+    VkDebugUtilsMessageTypeFlagsEXT messageType;
+    PFN_vkDebugUtilsMessengerCallbackEXT pCallback;
+};
+#endif
+
+
 class VulkanApplication
 {
 public:
@@ -37,6 +47,11 @@ public:
     void Run() noexcept;
     
 private:
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    static bool InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo& initInfo) noexcept;
+    static void TerminateVulkanDebugCallback() noexcept;
+#endif
+
     static bool InitVulkan(const char* appName) noexcept;
     static void TerminateVulkan() noexcept;
 
@@ -48,6 +63,10 @@ private:
 private:
     static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
     static inline VkInstance s_vulkanInst = {};
+
+#if defined(AM_LOGGING_ENABLED)
+    static inline VkDebugUtilsMessengerEXT s_vulkanDebugMessenger = {};
+#endif
     
     static inline bool s_isAppInitialized = false;
 

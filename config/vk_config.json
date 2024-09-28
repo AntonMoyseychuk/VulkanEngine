@@ -9,14 +9,23 @@
 
                     "extensions": [
                         "VK_EXT_debug_utils",
+                        
                         "VK_KHR_surface",
                         "VK_KHR_win32_surface"
-                    ]
+                    ],
+
+                    "callback": {
+                        "severity": ["warning", "error"],
+                        "message_types": ["all"]
+                    }
                 },
 
                 "release": {
                     "validation_layers": [],
-                    "extensions": []
+                    "extensions": [
+                        "VK_KHR_surface",
+                        "VK_KHR_win32_surface"
+                    ]
                 }
             }
         }

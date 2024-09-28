@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logging.h"
+#include "logger.h"
 
 
 void AssertImpl(bool condition, int loggerType, const char* file, const char* function, uint32_t line, const char* conditionStr, const char* message);

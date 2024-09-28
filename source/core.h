@@ -39,3 +39,11 @@
 #else
   #error Currently, only MSVC and Clang are supported
 #endif
+
+
+#if __cplusplus == 201703L
+  // From C++17
+  #define AM_MAYBE_UNUSED [[maybe_unused]]
+#else
+  #define AM_MAYBE_UNUSED
+#endif

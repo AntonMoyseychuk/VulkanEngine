@@ -8,12 +8,15 @@ namespace utils
         if (printMessageOnly) {
             pLogger->log(level, message);
         } else {
-            std::string format0 = fmt::format("{}\n", message);
-            format0 += fmt::format("\t\t- File: {}\n", file);
-            format0 += fmt::format("\t\t- Function: {} ({})", function, line);
-            if (additionalInfo) {
-                format0 += fmt::format("\n\t\t- Additional info: {}", additionalInfo);
-            }
+            static constexpr const char* NOT_SPECIFIED_MSG = "Not specified";
+
+            const char* resFile = file ? file : NOT_SPECIFIED_MSG;
+            const char* resFunction = function ? function : NOT_SPECIFIED_MSG;
+            const uint32_t resLine = function ? line : 0;
+            const char* resAdditionalInfo = additionalInfo ? additionalInfo : NOT_SPECIFIED_MSG;
+
+            std::string format0 = fmt::format("{}\n\t- File: {}\n\t- Function: {} ({})\n\t- Additional info: {}",
+                message, resFile, resFunction, resLine, resAdditionalInfo);
             
             pLogger->log(level, format0);
         }

@@ -24,6 +24,23 @@ static constexpr const char* JSON_COMMON_CONFIG_BUILD_TYPE_FIELD_NAME = "build_t
 static constexpr const char* JSON_VK_CONFIG_VALIDATION_LAYERS_FIELD_NAME = "validation_layers";
 static constexpr const char* JSON_VK_CONFIG_EXTENSIONS_FIELD_NAME = "extensions";
 
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_FIELD_NAME = "callback";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_FIELD_NAME = "severity";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPES_FIELD_NAME = "message_types";
+
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL = "all";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR = "error";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING = "warning";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO = "info";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE = "verbose";
+
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL = "all";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL = "general";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION = "validation";
+    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE = "performance";
+#endif
+
 // Application config specific field names
 static constexpr const char* JSON_APP_CONFIG_WINDOW_FIELD_NAME = "window";
 static constexpr const char* JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME = "title";
@@ -32,12 +49,165 @@ static constexpr const char* JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME = "height"
 static constexpr const char* JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME = "resizable";
 
 
-static constexpr size_t MAX_VULKAN_EXTENSIONS_COUNT = 64u;
-static constexpr size_t MAX_VULKAN_VALIDATION_LAYERS_COUNT = 64u;
+AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_EXTENSIONS_COUNT = 64u;
+AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_VALIDATION_LAYERS_COUNT = 64u;
+
+
+AM_MAYBE_UNUSED static const nlohmann::json& GetOsBuildTypeSpecificJsonObj(const nlohmann::json& base) noexcept
+{
+    const nlohmann::json& os = base[JSON_COMMON_CONFIG_OS_FIELD_NAME][JSON_COMMON_CONFIG_OS_NAME];
+    return os[JSON_COMMON_CONFIG_BUILD_TYPE_FIELD_NAME][JSON_COMMON_CONFIG_BUILD_TYPE];
+}
+
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) 
+{
+    Logger* pLogger = static_cast<Logger*>(pUserData);
+    
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+    } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+    } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        pLogger->Warn(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+    } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        pLogger->Error(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+        // AM_DEBUG_BREAK();
+    } else {
+        const std::string message = fmt::format("[UNKNOWN]: {}", pCallbackData->pMessage);
+        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, message.c_str());
+    }
+    
+    return VK_FALSE;
+}
+
+
+static VkDebugUtilsMessageSeverityFlagBitsEXT GetVkDebugUtilsMessageSeverityFlagBits(const std::vector<std::string>& tokens)
+{
+    constexpr uint32_t SEVERITY_ALL = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+    static const auto ConvertStrToSeverityBits = [](const std::string& severity) -> uint32_t
+    {
+        uint32_t severityBits = 0;
+
+        if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL) {
+            severityBits = SEVERITY_ALL;
+        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR) {
+            severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING) {
+            severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO) {
+            severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE) {
+            severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
+        } else {
+            AM_ASSERT_GRAPHICS_API(false, "Invalid Vulkan callback message severity JSON tokken {}", severity);
+        }
+
+        return severityBits;
+    };
+
+    uint32_t severity = 0;
+    
+    for (const std::string& token : tokens) {
+        uint32_t temp = ConvertStrToSeverityBits(token);
+        severity |= temp;
+
+        if (temp == SEVERITY_ALL) {
+            break;
+        }
+    }
+
+    return (VkDebugUtilsMessageSeverityFlagBitsEXT)severity;
+}
+
+
+static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std::vector<std::string>& tokens)
+{
+    constexpr uint32_t TYPE_ALL = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
+        (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | 
+        (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+
+    static const auto ConvertStrToTypeBits = [](const std::string& type) -> uint32_t
+    {
+        uint32_t typeBits = 0;
+
+        if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL) {
+            typeBits = TYPE_ALL;
+        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL) {
+            typeBits = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
+        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION) {
+            typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE) {
+            typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        } else {
+            AM_ASSERT_GRAPHICS_API(false, "Invalid Vulkan callback message type JSON tokken {}", type);
+        }
+
+        return typeBits;
+    };
+
+    uint32_t typeBits = 0;
+    
+    for (const std::string& token : tokens) {
+        uint32_t temp = ConvertStrToTypeBits(token);
+        typeBits |= temp;
+
+        if (temp == TYPE_ALL) {
+            break;
+        }
+    }
+
+    return (VkDebugUtilsMessageTypeFlagsEXT)typeBits;
+}
+
+
+static VulkanDebugCallbackInitInfo ParseVulkankAppInitInfoJson(const nlohmann::json& vkConfigJsonFile) noexcept
+{
+    VulkanDebugCallbackInitInfo result = {};
+    result.pCallback = VulkanDebugCallback;
+
+    const nlohmann::json& build = GetOsBuildTypeSpecificJsonObj(vkConfigJsonFile);
+    const nlohmann::json& callback = build[JSON_VK_CONFIG_CALLBACK_FIELD_NAME];
+
+    const nlohmann::json& severity = callback[JSON_VK_CONFIG_CALLBACK_SEVERITY_FIELD_NAME];
+    std::vector<std::string> severityTokens = amjson::ParseArrayJson<std::string>(severity);
+    result.messageSeverity = GetVkDebugUtilsMessageSeverityFlagBits(severityTokens);
+
+    const nlohmann::json& messageTypes = callback[JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
+    std::vector<std::string> messageTypeTokens = amjson::ParseArrayJson<std::string>(messageTypes);
+    result.messageType = GetVkDebugUtilsMessageTypeFlags(messageTypeTokens);
+
+    return result;
+}
+
+
+static VkDebugUtilsMessengerCreateInfoEXT GetVkDebugUtilsMessengerCreateInfo(const VulkanDebugCallbackInitInfo& initInfo) noexcept
+{
+    AM_ASSERT(Logger::IsInitialized(), "Logger must be initialized by the time Vukan initialization");
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = initInfo.messageSeverity;
+    createInfo.messageType = initInfo.messageType;
+    createInfo.pfnUserCallback = initInfo.pCallback;
+    createInfo.pUserData = Logger::Instance();
+
+    return createInfo;
+}
+#endif
 
 
 // Potentialy unsafe, since lifetime of chPtrArr must be less of equal than strArr
-static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& inoutChPtrArrSize, const std::vector<std::string>& strArr) noexcept
+AM_MAYBE_UNUSED static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& inoutChPtrArrSize, const std::vector<std::string>& strArr) noexcept
 {
     AM_ASSERT(strArr.size() <= inoutChPtrArrSize, "Target chPtrArr size is less than source strArr");
 
@@ -48,14 +218,7 @@ static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& ino
 }
 
 
-static const nlohmann::json& GetOsBuildTypeSpecificJsonObj(const nlohmann::json& base) noexcept
-{
-    const nlohmann::json& os = base[JSON_COMMON_CONFIG_OS_FIELD_NAME][JSON_COMMON_CONFIG_OS_NAME];
-    return os[JSON_COMMON_CONFIG_BUILD_TYPE_FIELD_NAME][JSON_COMMON_CONFIG_BUILD_TYPE];
-}
-
-
-static std::optional<VulkanAppInitInfo> ParseVkAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
+static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
 {
     std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
     if (!jsonOpt.has_value()) {
@@ -75,18 +238,18 @@ static std::optional<VulkanAppInitInfo> ParseVkAppInitInfoJson(const std::filesy
 }
 
 
-static inline std::string GetVulkanValidationLayerDesc(const VkLayerProperties& layer) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const VkLayerProperties& layer) noexcept
 {
     return fmt::format("{} -> \033[33m{}\033[0m", layer.layerName, layer.description);
 }
 
-static inline std::string GetVulkanValidationLayerDesc(const std::string& layerDesc) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const std::string& layerDesc) noexcept
 {
     return fmt::format("{}{}{}", "\033[33m", layerDesc, "\033[0m");
 }
 
 template<typename ValidationLayerT>
-static std::string MakeVulkanValidationLayersListString(const std::vector<ValidationLayerT>& layers) noexcept
+AM_MAYBE_UNUSED static std::string MakeVulkanValidationLayersListString(const std::vector<ValidationLayerT>& layers) noexcept
 {
     std::string result = "";
         
@@ -98,18 +261,18 @@ static std::string MakeVulkanValidationLayersListString(const std::vector<Valida
 }
 
 
-static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
 {
     return fmt::format("{}{}{}", "\033[33m", extension.extensionName, "\033[0m");
 }
 
-static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
 {
     return fmt::format("{}{}{}", "\033[33m", extension, "\033[0m");
 }
 
 template<typename ExtensionT>
-static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>& extensions) noexcept
+AM_MAYBE_UNUSED static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>& extensions) noexcept
 {
     std::string result = "";
         
@@ -121,7 +284,7 @@ static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>&
 }
 
 
-static std::vector<std::string> GetVulkanValidationLayers(const nlohmann::json& vkConfigJsonFile) noexcept
+AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const nlohmann::json& vkConfigJsonFile) noexcept
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -208,7 +371,7 @@ bool VulkanApplication::Init() noexcept
         return true;
     }
 
-    std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseVkAppInitInfoJson(paths::AM_PROJECT_CONFIG_FILE_PATH);
+    std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseVulkanAppInitInfoJson(paths::AM_PROJECT_CONFIG_FILE_PATH);
     if (!appInitInfoOpt.has_value()) {
         return false;
     }
@@ -262,6 +425,44 @@ void VulkanApplication::Run() noexcept
 }
 
 
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+
+
+bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo &initInfo) noexcept
+{
+    VkDebugUtilsMessengerCreateInfoEXT createInfo = GetVkDebugUtilsMessengerCreateInfo(initInfo);
+
+    if (CreateDebugUtilsMessengerEXT(s_vulkanInst, &createInfo, nullptr, &s_vulkanDebugMessenger) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan debug messenger creation failed");
+        return false;
+    }
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanDebugCallback() noexcept
+{
+    DestroyDebugUtilsMessengerEXT(s_vulkanInst, s_vulkanDebugMessenger, nullptr);
+}
+#endif
+
 bool VulkanApplication::InitVulkan(const char *appName) noexcept
 {
     if (!appName) {
@@ -274,7 +475,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
         return false;
     }
 
-    const nlohmann::json& json = jsonOpt.value();
+    const nlohmann::json& base = jsonOpt.value();
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -290,19 +491,19 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     instCreateInfo.enabledLayerCount = 0;
     instCreateInfo.ppEnabledLayerNames = nullptr;
 
-    const std::vector<std::string> extensionNames = GetVulkanExtensions(json);
+    const std::vector<std::string> extensionNames = GetVulkanExtensions(base);
     const char* extensionNamesChar[MAX_VULKAN_EXTENSIONS_COUNT] = {};
     size_t extensionsCount = extensionNames.size();
 
     if (extensionsCount > 0) {
         MapArrayOfStringToArrayOfCharPtrs(extensionNamesChar, extensionsCount, extensionNames);
-        instCreateInfo.ppEnabledLayerNames = extensionNamesChar;
+        instCreateInfo.ppEnabledExtensionNames = extensionNamesChar;
     }
 
-    instCreateInfo.enabledLayerCount = static_cast<uint32_t>(extensionsCount);
+    instCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensionsCount);
     
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    const std::vector<std::string> validationLayerNames = GetVulkanValidationLayers(json);
+    const std::vector<std::string> validationLayerNames = GetVulkanValidationLayers(base);
     const char* validationLayerNamesChar[MAX_VULKAN_VALIDATION_LAYERS_COUNT] = {};
     size_t validationLayersCount = validationLayerNames.size();
  
@@ -314,9 +515,22 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     instCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayersCount);
 #endif
 
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    VulkanDebugCallbackInitInfo debugInitInfo = ParseVulkankAppInitInfoJson(base);
+    VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = GetVkDebugUtilsMessengerCreateInfo(debugInitInfo);
+    instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessangerCreateInfo;
+#endif
+
     if (vkCreateInstance(&instCreateInfo, nullptr, &s_vulkanInst) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan instance creation failed");
+        return false;
     }
+    
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    if (!InitVulkanDebugCallback(debugInitInfo)) {
+        return false;
+    }
+#endif
 
     return true;
 }
@@ -324,6 +538,10 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    TerminateVulkanDebugCallback();
+#endif
+
     vkDestroyInstance(s_vulkanInst, nullptr);
 }
 

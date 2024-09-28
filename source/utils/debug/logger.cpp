@@ -1,6 +1,6 @@
 #include "../../pch.h"
 
-#include "logging.h"
+#include "logger.h"
 
 
 static constexpr const char* JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME = "loggers";

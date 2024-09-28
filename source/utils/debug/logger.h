@@ -89,7 +89,7 @@ template <typename... Args>
 inline void LoggerError(Logger::LoggerType type, bool printMessageOnly, const char* file, const char* function, uint32_t line, const char* additionalInfo, const char* format, Args&&... args) noexcept;
 
 
-#include "logging.hpp"
+#include "logger.hpp"
 
 
 void amInitLogSystem() noexcept;
