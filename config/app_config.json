@@ -1,8 +1,25 @@
 {
-    "window": {
-        "title": "Vulkan Demo",
-        "width": 1080,
-        "height": 720,
-        "resizable": false
+    "os": {
+        "win32": {
+            "build_type": {
+                "debug": {
+                    "window": {
+                        "title": "Vulkan Demo",
+                        "width": 1080,
+                        "height": 720,
+                        "resizable": false
+                    }
+                },
+
+                "release": {
+                    "window": {
+                        "title": "Vulkan Demo",
+                        "width": 1080,
+                        "height": 720,
+                        "resizable": false
+                    }
+                }
+            }
+        }
     }
 }

@@ -1,51 +1,81 @@
-#include "logging.h"
+namespace utils
+{
+    template <typename... Args>
+    inline void SpdlogPrint(std::shared_ptr<spdlog::logger> pLogger, spdlog::level::level_enum level, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+    {
+        const std::string message = fmt::format(format, std::forward<Args>(args)...);
+    
+        if (printMessageOnly) {
+            pLogger->log(level, message);
+        } else {
+            std::string format0 = fmt::format("{}\n", message);
+            format0 += fmt::format("\t\t- File: {}\n", file);
+            format0 += fmt::format("\t\t- Function: {} ({})", function, line);
+            if (additionalInfo) {
+                format0 += fmt::format("\n\t\t- Additional info: {}", additionalInfo);
+            }
+            
+            pLogger->log(level, format0);
+        }
+    }   
+}
+
 
 template <typename... Args>
-inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
+inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
 
-    const std::string message = fmt::format(format, std::forward<Args>(args)...);
-    
-    if (printMessageOnly) {
-        pLogger->info(message);
+    utils::SpdlogPrint(pLogger, spdlog::level::level_enum::info, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+{
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
+
+    utils::SpdlogPrint(pLogger, spdlog::level::level_enum::warn, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline void Logger::Error(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+{
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
+
+    utils::SpdlogPrint(pLogger, spdlog::level::level_enum::err, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline void LoggerInfo(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
+{
+    if (Logger::IsInitialized()) {
+        Logger::Instance()->Info(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     } else {
-        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
-        
-        pLogger->info(format0);
+        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::info, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     }
 }
 
 
 template <typename... Args>
-inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
+inline void LoggerWarn(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
-
-    const std::string message = fmt::format(format, std::forward<Args>(args)...);
-    
-    if (printMessageOnly) {
-        pLogger->warn(message);
+    if (Logger::IsInitialized()) {
+        Logger::Instance()->Warn(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     } else {
-        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
-        
-        pLogger->warn(format0);
+        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::warn, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     }
 }
 
 
 template <typename... Args>
-inline void Logger::Error(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char *format, Args &&...args)
+inline void LoggerError(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
-    const auto& pLogger = IsLoggerInitialized() ? m_loggers[type] : s_pDefaultLogger;
-
-    const std::string message = fmt::format(format, std::forward<Args>(args)...);
-    
-    if (printMessageOnly) {
-        pLogger->error(message);
+    if (Logger::IsInitialized()) {
+        Logger::Instance()->Error(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     } else {
-        const std::string format0 = fmt::format("{}\n\t\t- File: {}\n\t\t- Function: {} ({})", message, file, function, line);
-        
-        pLogger->error(format0);
+        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::err, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
     }
 }

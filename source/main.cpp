@@ -5,14 +5,10 @@
 
 int main(int argc, char* argv[])
 {
-#if defined(AM_LOGGING_ENABLED)
-    if (!Logger::Init()) {
-        AM_LOG_WARN("Unexpected problems occurred during the initialization of the log system. Using default logger.");
-    }
-#endif
+    amInitLogSystem();
     
     if (!VulkanApplication::Init()) {
-        AM_LOG_ERROR("Unexpected problems occurred during the initialization of the application. Application is terminated.");
+        AM_LOG_ERROR("Unexpected problems occurred during the initialization of the application. Application is terminated.\n");
         exit(-1);
     }
     
@@ -21,9 +17,9 @@ int main(int argc, char* argv[])
 
     VulkanApplication::Terminate();
 
-#if defined(AM_LOGGING_ENABLED)
-    Logger::Terminate();
-#endif
+    AM_LOG_INFO("END");
+    
+    amTerminateLogSystem();
 
     return 0;
 }

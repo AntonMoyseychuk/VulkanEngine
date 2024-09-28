@@ -3,17 +3,23 @@
 #include "logging.h"
 
 
+static constexpr const char* JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME = "loggers";
+static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME = "name";
+static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME = "pattern";
+
+
 Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const std::filesystem::path &pathToJson) noexcept
 {
-    std::optional<nlohmann::json> jsonOpt = ParseJson(pathToJson);
+    std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
     if (!jsonOpt.has_value()) {
         return {};
     }
 
     const nlohmann::json& json = jsonOpt.value();
     
-    const auto& loggers = json["loggers"];
+    const nlohmann::json& loggers = json[JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME];
     if (loggers.empty()) {
+        AM_LOG_WARN("No custom loggers are specified in the log system configuration json file");
         return {};
     }
 
@@ -22,9 +28,10 @@ Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const std::files
     
     LoggerSystemInitInfo::LoggerInfo loggerInfo = {};
     for (const auto& logger : loggers.items()) {
-        const auto& value = logger.value();
-        value["name"].get_to(loggerInfo.loggerName);
-        value["pattern"].get_to(loggerInfo.outputPattern);
+        const nlohmann::json& value = logger.value();
+
+        value[JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME].get_to(loggerInfo.loggerName);
+        value[JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME].get_to(loggerInfo.outputPattern);
 
         info.infos.emplace_back(loggerInfo);
     }
@@ -33,19 +40,32 @@ Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const std::files
 }
 
 
+std::shared_ptr<spdlog::logger> Logger::CreateDefaultSpdlogger() noexcept
+{
+    std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_st(DEFAULT_LOGGER_NAME);
+    logger->set_pattern(DEFAULT_LOGGER_PATTERN);
+
+    return logger;
+}
+
+
 Logger* Logger::Instance() noexcept
 {
     return s_pInst.get();
 }
 
+std::shared_ptr<spdlog::logger> Logger::GetDefaultLogger() noexcept
+{
+    return s_pDefaultLogger;
+}
+
 
 bool Logger::Init()
 {
-    if (IsLoggerInitialized()) {
+    if (IsInitialized()) {
+        AM_LOG_INFO("Log system is already initialized");
         return true;
     }
-
-    s_pDefaultLogger->set_pattern(DEFAULT_LOGGER_PATTERN);
 
     LoggerSystemInitInfo initInfo = ParseLoggerSysInitInfoJson(paths::AM_LOGGER_CONFIG_FILE_PATH);
 
@@ -62,7 +82,7 @@ void Logger::Terminate() noexcept
 }
 
 
-bool Logger::IsLoggerInitialized() noexcept
+bool Logger::IsInitialized() noexcept
 {
     return s_pInst != nullptr;
 }
@@ -81,4 +101,28 @@ Logger::Logger(const LoggerSystemInitInfo &initInfo)
 
         m_loggers.emplace_back(logger);
     }
+}
+
+
+bool Logger::IsCustomLogger(LoggerType type) const noexcept
+{
+    return type < m_loggers.size() && m_loggers[type] != nullptr;
+}
+
+
+void amInitLogSystem() noexcept
+{
+#if defined(AM_LOGGING_ENABLED)
+    if (!Logger::Init()) {
+        AM_LOG_WARN("Unexpected problems occurred during the initialization of the log system. Using default logger.\n");
+    }
+#endif
+}
+
+
+void amTerminateLogSystem() noexcept
+{
+#if defined(AM_LOGGING_ENABLED)
+    Logger::Terminate();
+#endif
 }

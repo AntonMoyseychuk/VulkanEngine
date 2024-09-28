@@ -21,7 +21,13 @@
 
 #if defined(AM_DEBUG)
   #define AM_ASSERTION_ENABLED
+#endif
+
+#if defined(AM_DEBUG)
   #define AM_LOGGING_ENABLED
+#endif
+
+#if defined(AM_DEBUG)
   #define AM_VK_VALIDATION_LAYERS_ENABLED
 #endif
 
@@ -32,13 +38,4 @@
   #define AM_DEBUG_BREAK() __builtin_trap()
 #else
   #error Currently, only MSVC and Clang are supported
-#endif
-
-
-#if defined(AM_ASSERTION_ENABLED)
-  #include "utils/debug/logging.h"
-    
-  #define AM_ASSERT(condition, format, ...) if (!(condition)) { AM_LOG_ERROR(format, __VA_ARGS__); AM_DEBUG_BREAK(); }
-#else
-  #define AM_ASSERT(condition, format, ...)
 #endif

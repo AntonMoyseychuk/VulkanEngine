@@ -1,9 +1,24 @@
 {
-    "validation_layers": [
-        "VK_LAYER_KHRONOS_validation"
-    ],
+    "os": {
+        "win32": {
+            "build_type": {
+                "debug": {
+                    "validation_layers": [
+                        "VK_LAYER_KHRONOS_validation"
+                    ],
 
-    "extensions": [
-        
-    ]
+                    "extensions": [
+                        "VK_EXT_debug_utils",
+                        "VK_KHR_surface",
+                        "VK_KHR_win32_surface"
+                    ]
+                },
+
+                "release": {
+                    "validation_layers": [],
+                    "extensions": []
+                }
+            }
+        }
+    }
 }
