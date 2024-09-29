@@ -67,7 +67,7 @@ private:
     struct VulkanState
     {
         VkInstance instance;
-        VkPhysicalDevice device;
+        VkPhysicalDevice physicalDevice;
 
         #if defined(AM_LOGGING_ENABLED)
             VkDebugUtilsMessengerEXT debugMessenger;

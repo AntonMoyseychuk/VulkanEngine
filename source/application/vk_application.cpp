@@ -574,20 +574,20 @@ static void PrintPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features
 }
 
 
-static VulkanQueueFamiliesIndices FindRequiredVulkanQueueFamilies(VkPhysicalDevice device) noexcept
+static VulkanQueueFamiliesIndices FindRequiredVulkanQueueFamilies(VkPhysicalDevice physicalDevice) noexcept
 {
-    if (device == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device passed to {}", __FUNCTION__);
+    if (physicalDevice == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE physicalDevice passed to {}", __FUNCTION__);
         return {};
     }
 
     VulkanQueueFamiliesIndices indices = {};
 
     uint32_t familiesCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familiesCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(familiesCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familiesCount, queueFamilies.data());
 
     for (uint32_t requiredFlagBitsId = 0; requiredFlagBitsId < VulkanQueueFamiliesIndices::REQUIRED_QUIE_FAMILIES_FLAGS.size(); ++requiredFlagBitsId) {
         const VkQueueFlags& requiredQueueFlags = VulkanQueueFamiliesIndices::REQUIRED_QUIE_FAMILIES_FLAGS[requiredFlagBitsId];
@@ -606,31 +606,31 @@ static VulkanQueueFamiliesIndices FindRequiredVulkanQueueFamilies(VkPhysicalDevi
 }
 
 
-static uint64_t GetVulkanPhysicalDevicePriority(VkPhysicalDevice device, const VulkanPhysDeviceInitInfo& requirements) noexcept
+static uint64_t GetVulkanPhysicalDevicePriority(VkPhysicalDevice physicalDevice, const VulkanPhysDeviceInitInfo& requirements) noexcept
 {
-    if (device == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device passed to {}", __FUNCTION__);
+    if (physicalDevice == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE physicalDevice passed to {}", __FUNCTION__);
         return 0;
     }
 
-    VkPhysicalDeviceProperties deviceProps = {};
-    vkGetPhysicalDeviceProperties(device, &deviceProps);
+    VkPhysicalDeviceProperties physDeviceProps = {};
+    vkGetPhysicalDeviceProperties(physicalDevice, &physDeviceProps);
 
-    PrintPhysicalDeviceProperties(deviceProps);
+    PrintPhysicalDeviceProperties(physDeviceProps);
     
-    uint64_t priority = GetVulkanDeviceTypePriority(deviceProps.deviceType, requirements.types);
+    uint64_t priority = GetVulkanDeviceTypePriority(physDeviceProps.deviceType, requirements.types);
     
     AM_MAYBE_UNUSED const char* message = priority > 0 ? 
         AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Device '{}' with type '{}' match required types\n") :
         AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_RED_ASCII_CODE, "Device '{}' with type '{}' doesn't matches required types\n");
-    AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
+    AM_LOG_GRAPHICS_API_INFO(message, physDeviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(physDeviceProps.deviceType)->str);
 
     {
         // Will be used in the future, may be
-        VkPhysicalDeviceFeatures deviceFeatures = {};
-        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+        VkPhysicalDeviceFeatures physDeviceFeatures = {};
+        vkGetPhysicalDeviceFeatures(physicalDevice, &physDeviceFeatures);
 
-        PrintPhysicalDeviceFeatures(deviceFeatures);
+        PrintPhysicalDeviceFeatures(physDeviceFeatures);
     }
 
 
@@ -817,11 +817,11 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
 bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept
 {
     if (IsVulkanPhysicalDeviceInitialized()) {
-        AM_LOG_WARN("Vulkan physical device is already initialized");
+        AM_LOG_WARN("Vulkan physical physicalDevice is already initialized");
         return true;
     }
 
-    AM_ASSERT_GRAPHICS_API(s_vulkanState.instance != VK_NULL_HANDLE, "Vulkan instance must be initialized before physical device initialization");
+    AM_ASSERT_GRAPHICS_API(s_vulkanState.instance != VK_NULL_HANDLE, "Vulkan instance must be initialized before physical physicalDevice initialization");
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(s_vulkanState.instance, &deviceCount, nullptr);
@@ -836,12 +836,12 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
 
     std::multimap<uint64_t, VkPhysicalDevice> suitableDevices;
 
-    AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
-    for (VkPhysicalDevice device : devices) {
-        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(device, initInfo);
+    AM_LOG_GRAPHICS_API_INFO("Picking suitable physical physicalDevice...");
+    for (VkPhysicalDevice physicalDevice : devices) {
+        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(physicalDevice, initInfo);
         
         if (devicePriority) {
-            suitableDevices.insert(std::make_pair(devicePriority, device));
+            suitableDevices.insert(std::make_pair(devicePriority, physicalDevice));
         }
     }
 
@@ -850,14 +850,14 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
         return false;
     }
 
-    for (const auto& it = suitableDevices.rbegin(); it != suitableDevices.rend(); std::next(it)) {
+    for (auto it = suitableDevices.rbegin(); it != suitableDevices.rend(); ++it) {
         if (FindRequiredVulkanQueueFamilies(it->second).IsComplete()) {
-            s_vulkanState.device = it->second;
+            s_vulkanState.physicalDevice = it->second;
             break;
         }
     }
 
-    if (s_vulkanState.device == VK_NULL_HANDLE) {
+    if (s_vulkanState.physicalDevice == VK_NULL_HANDLE) {
         return false;
     }
 
@@ -922,7 +922,7 @@ bool VulkanApplication::IsVulkanDebugCallbackInitialized() noexcept
 
 bool VulkanApplication::IsVulkanPhysicalDeviceInitialized() noexcept
 {
-    return s_vulkanState.device != VK_NULL_HANDLE;
+    return s_vulkanState.physicalDevice != VK_NULL_HANDLE;
 }
 
 
