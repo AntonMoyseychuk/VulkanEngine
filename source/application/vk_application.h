@@ -50,6 +50,13 @@ private:
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
+
+    static bool IsVulkanInstanceInitialized() noexcept;
+    static bool IsVulkanDebugCallbackInitialized() noexcept;
+    static bool IsVulkanPhysicalDeviceInitialized() noexcept;
+
+    static bool IsVulkanInitialized() noexcept;
+
 private:
     VulkanApplication(const VulkanAppInitInfo& appInitInfo);
 

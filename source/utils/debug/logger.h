@@ -18,7 +18,7 @@
 #define AM_OUTPUT_COLOR_CYAN_ASCII_CODE       "\033[36m"
 #define AM_OUTPUT_COLOR_WHITE_ASCII_CODE      "\033[37m"
 
-#define AM_MAKE_COLORED_TEXT(color, text) (color text AM_OUTPUT_COLOR_RESET_ASCII_CODE)
+#define AM_MAKE_COLORED_TEXT(color, text) color text AM_OUTPUT_COLOR_RESET_ASCII_CODE
 
 class Logger
 {

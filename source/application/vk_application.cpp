@@ -114,7 +114,6 @@ struct VulkanApplication::VulkanPhysDeviceInitInfo
 
 
 using VulkanAppInitInfo = VulkanApplication::VulkanAppInitInfo;
-using VulkanDebugCallbackInitInfo = VulkanApplication::VulkanDebugCallbackInitInfo;
 using VulkanInstanceInitInfo = VulkanApplication::VulkanInstanceInitInfo;
 using VulkanPhysDeviceInitInfo = VulkanApplication::VulkanPhysDeviceInitInfo;
 
@@ -123,15 +122,31 @@ using VulkanDebugCallbackInitInfo = VulkanApplication::VulkanDebugCallbackInitIn
 #endif
 
 
-struct VulkanPhysicalDeviceCandidate
+struct VulkanQueueFamiliesIndices
 {
-    bool operator<(const VulkanPhysicalDeviceCandidate& other) const noexcept
+    enum RequiredQueueFamilyType
     {
-        return priority < other.priority;
+        RequiredQueueFamilyType_GRAPHICS,
+        RequiredQueueFamilyType_COUNT
+    };
+
+    VulkanQueueFamiliesIndices()
+        : familiesIds(RequiredQueueFamilyType_COUNT)
+    {
     }
 
-    VkPhysicalDevice device;
-    uint64_t priority;
+    bool IsComplete() const noexcept
+    {
+        return std::find_if(familiesIds.cbegin(), familiesIds.cend(), [](const auto& familyOpt) {
+            return !familyOpt.has_value();
+        }) == familiesIds.cend();
+    }
+
+    static constexpr inline std::array<VkQueueFlagBits, RequiredQueueFamilyType_COUNT> REQUIRED_QUIE_FAMILIES_FLAGS = {
+        VK_QUEUE_GRAPHICS_BIT
+    };
+
+    std::vector<std::optional<uint32_t>> familiesIds;
 };
 
 
@@ -467,7 +482,11 @@ static VulkanInstanceInitInfo ParseVulkanInstanceInitInfoJson(const nlohmann::js
     VulkanInstanceInitInfo instInitInfo = {};
     instInitInfo.extensionNames = GetVulkanExtensions(vkInstanceJson);
     instInitInfo.validationLayerNames = GetVulkanValidationLayers(vkInstanceJson);
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     instInitInfo.debugCallbackInitInfo = ParseVulkanCallbackInitInfoJson(vkInstanceJson);
+#endif
+
     return instInitInfo;
 }
 
@@ -521,6 +540,72 @@ static uint64_t GetVulkanDeviceTypePriority(VkPhysicalDeviceType type, const std
 }
 
 
+static void PrintPhysicalDeviceProperties(const VkPhysicalDeviceProperties& props) noexcept
+{
+#if defined(AM_LOGGING_ENABLED)
+    const uint32_t deviceID = props.deviceID;
+    const char* deviceName = props.deviceName;
+
+    const ParsedVulkanPhysicalDeviceType* parsedType = ConvertVkPhysicalDeviceTypeToParsedType(props.deviceType);
+    const char* deviceType = parsedType ? parsedType->str : "unknown";
+
+    const uint32_t apiVersionMajor = VK_API_VERSION_MAJOR(props.apiVersion);
+    const uint32_t apiVersionMinor = VK_API_VERSION_MINOR(props.apiVersion);
+    const uint32_t apiVersionPatch = VK_API_VERSION_PATCH(props.apiVersion);
+    
+    const uint32_t driverVersionMajor = VK_API_VERSION_MAJOR(props.driverVersion);
+    const uint32_t driverVersionMinor = VK_API_VERSION_MINOR(props.driverVersion);
+    const uint32_t driverVersionPatch = VK_API_VERSION_PATCH(props.driverVersion);
+
+    constexpr const char* format = "Device {} properties:\n" AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, 
+        "  - Name: {};\n  - Type: {};\n  - API Version: {}.{}.{};\n  - Driver Version: {}.{}.{}."
+    );
+
+    AM_LOG_GRAPHICS_API_INFO(format, deviceID, deviceName, deviceType, apiVersionMajor, apiVersionMinor, apiVersionPatch, driverVersionMajor, driverVersionMinor, driverVersionPatch);
+#endif
+}
+
+
+static void PrintPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features) noexcept
+{
+#if defined(AM_LOGGING_ENABLED)
+    
+#endif
+}
+
+
+static VulkanQueueFamiliesIndices FindRequiredVulkanQueueFamilies(VkPhysicalDevice device) noexcept
+{
+    if (device == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device passed to {}", __FUNCTION__);
+        return {};
+    }
+
+    VulkanQueueFamiliesIndices indices = {};
+
+    uint32_t familiesCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(familiesCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, queueFamilies.data());
+
+    for (uint32_t requiredFlagBitsId = 0; requiredFlagBitsId < VulkanQueueFamiliesIndices::REQUIRED_QUIE_FAMILIES_FLAGS.size(); ++requiredFlagBitsId) {
+        const VkQueueFlags& requiredQueueFlags = VulkanQueueFamiliesIndices::REQUIRED_QUIE_FAMILIES_FLAGS[requiredFlagBitsId];
+
+        for (uint32_t familyId = 0; familyId < queueFamilies.size(); ++familyId) {
+            const VkQueueFlags& queueFlags = queueFamilies[familyId].queueFlags;
+
+            if (queueFlags & requiredQueueFlags) {
+                indices.familiesIds[requiredFlagBitsId] = familyId;
+                break;
+            }
+        }
+    }
+
+    return indices;
+}
+
+
 static uint64_t GetVulkanPhysicalDevicePriority(VkPhysicalDevice device, const VulkanPhysDeviceInitInfo& requirements) noexcept
 {
     if (device == VK_NULL_HANDLE) {
@@ -530,24 +615,25 @@ static uint64_t GetVulkanPhysicalDevicePriority(VkPhysicalDevice device, const V
 
     VkPhysicalDeviceProperties deviceProps = {};
     vkGetPhysicalDeviceProperties(device, &deviceProps);
+
+    PrintPhysicalDeviceProperties(deviceProps);
     
-    uint64_t priority = 0;
+    uint64_t priority = GetVulkanDeviceTypePriority(deviceProps.deviceType, requirements.types);
+    
+    AM_MAYBE_UNUSED const char* message = priority > 0 ? 
+        AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Device '{}' with type '{}' match required types\n") :
+        AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_RED_ASCII_CODE, "Device '{}' with type '{}' doesn't matches required types\n");
+    AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
 
-    const uint64_t typePriority = GetVulkanDeviceTypePriority(deviceProps.deviceType, requirements.types);
-    if (!typePriority) {
-        const char* message = AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_RED_ASCII_CODE, "Device '{}' with type '{}' doesn't matches required types");
+    {
+        // Will be used in the future, may be
+        VkPhysicalDeviceFeatures deviceFeatures = {};
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
-        AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
-    } else {
-        const char* message = AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Device '{}' with type '{}' match required types");
-
-        AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
+        PrintPhysicalDeviceFeatures(deviceFeatures);
     }
 
-    priority += typePriority;
 
-    VkPhysicalDeviceFeatures deviceFeatures = {};
-    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
     return priority;
 }
@@ -634,6 +720,11 @@ void VulkanApplication::Run() noexcept
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
 bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo &initInfo) noexcept
 {
+    if (IsVulkanDebugCallbackInitialized()) {
+        AM_LOG_WARN("Vulkan debug callback is already initialized");
+        return true;
+    }
+
     VkDebugUtilsMessengerCreateInfoEXT createInfo = GetVkDebugUtilsMessengerCreateInfo(initInfo);
 
     if (CreateDebugUtilsMessengerEXT(s_vulkanState.instance, &createInfo, nullptr, &s_vulkanState.debugMessenger) != VK_SUCCESS) {
@@ -654,6 +745,11 @@ void VulkanApplication::TerminateVulkanDebugCallback() noexcept
 
 bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInfo) noexcept
 {
+    if (IsVulkanInstanceInitialized()) {
+        AM_LOG_WARN("Vulkan instance is already initialized");
+        return true;
+    }
+
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Default Vulkan Application";
@@ -720,6 +816,11 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
 
 bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept
 {
+    if (IsVulkanPhysicalDeviceInitialized()) {
+        AM_LOG_WARN("Vulkan physical device is already initialized");
+        return true;
+    }
+
     AM_ASSERT_GRAPHICS_API(s_vulkanState.instance != VK_NULL_HANDLE, "Vulkan instance must be initialized before physical device initialization");
 
     uint32_t deviceCount = 0;
@@ -733,13 +834,14 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(s_vulkanState.instance, &deviceCount, devices.data());
 
-    std::multiset<VulkanPhysicalDeviceCandidate> suitableDevices;
+    std::multimap<uint64_t, VkPhysicalDevice> suitableDevices;
 
     AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
     for (VkPhysicalDevice device : devices) {
         const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(device, initInfo);
+        
         if (devicePriority) {
-            suitableDevices.insert({device, devicePriority});
+            suitableDevices.insert(std::make_pair(devicePriority, device));
         }
     }
 
@@ -748,7 +850,16 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
         return false;
     }
 
-    s_vulkanState.device = suitableDevices.rbegin()->device;
+    for (const auto& it = suitableDevices.rbegin(); it != suitableDevices.rend(); std::next(it)) {
+        if (FindRequiredVulkanQueueFamilies(it->second).IsComplete()) {
+            s_vulkanState.device = it->second;
+            break;
+        }
+    }
+
+    if (s_vulkanState.device == VK_NULL_HANDLE) {
+        return false;
+    }
 
     return true;
 }
@@ -756,6 +867,11 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
 
 bool VulkanApplication::InitVulkan() noexcept
 {
+    if (IsVulkanInitialized()) {
+        AM_LOG_WARN("Vulkan is already initialized");
+        return true;
+    }
+
     const std::optional<nlohmann::json> vulkanConfigOpt = amjson::ParseJson(paths::AM_VULKAN_CONFIG_FILE_PATH);
     if (!vulkanConfigOpt.has_value()) {
         AM_ASSERT(false, "Failed to parse Vulkan config file");
@@ -785,6 +901,34 @@ void VulkanApplication::TerminateVulkan() noexcept
 #endif
 
     TerminateVulkanInstance();
+}
+
+
+bool VulkanApplication::IsVulkanInstanceInitialized() noexcept
+{
+    return s_vulkanState.instance != VK_NULL_HANDLE;
+}
+
+
+bool VulkanApplication::IsVulkanDebugCallbackInitialized() noexcept
+{
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    return s_vulkanState.debugMessenger != VK_NULL_HANDLE;
+#else
+    return true;
+#endif
+}
+
+
+bool VulkanApplication::IsVulkanPhysicalDeviceInitialized() noexcept
+{
+    return s_vulkanState.device != VK_NULL_HANDLE;
+}
+
+
+bool VulkanApplication::IsVulkanInitialized() noexcept
+{
+    return IsVulkanDebugCallbackInitialized() && IsVulkanDebugCallbackInitialized() && IsVulkanPhysicalDeviceInitialized();
 }
 
 
