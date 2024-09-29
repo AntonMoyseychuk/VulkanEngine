@@ -8,18 +8,17 @@ int main(int argc, char* argv[])
     amInitLogSystem();
     
     if (!VulkanApplication::Init()) {
-        AM_LOG_ERROR("Unexpected problems occurred during the initialization of the application. Application is terminated.\n");
         exit(-1);
     }
 
-    AM_LOG_INFO("Application initialized");
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Application initialized"));
     
     VulkanApplication& instance = VulkanApplication::Instance();
     instance.Run();
 
     VulkanApplication::Terminate();
 
-    AM_LOG_INFO("Application terminated");
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Application terminated"));
     
     amTerminateLogSystem();
 

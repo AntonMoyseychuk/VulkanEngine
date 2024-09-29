@@ -40,7 +40,6 @@ public:
     VulkanApplication& operator=(VulkanApplication&& app) = delete;
 
     ~VulkanApplication();
-
     
     void Run() noexcept;
     
@@ -49,6 +48,8 @@ private:
     static bool InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo& initInfo) noexcept;
     static void TerminateVulkanDebugCallback() noexcept;
 #endif
+
+    static bool InitVulkanPhysicalDevice() noexcept;
 
     static bool InitVulkan(const char* appName) noexcept;
     static void TerminateVulkan() noexcept;
@@ -63,6 +64,7 @@ private:
     struct VulkanState
     {
         VkInstance instance;
+        VkPhysicalDevice device;
 
         #if defined(AM_LOGGING_ENABLED)
             VkDebugUtilsMessengerEXT debugMessenger;

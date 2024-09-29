@@ -1,7 +1,7 @@
 {
     "loggers": {
         "common": {
-            "name": "COMMON",
+            "name": "APP",
             "pattern": "[%^%l%$] [%n]: %v"
         },
 

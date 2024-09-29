@@ -42,6 +42,13 @@ Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const std::files
 
 std::shared_ptr<spdlog::logger> Logger::CreateDefaultSpdlogger() noexcept
 {
+    if (s_pDefaultLogger) {
+        return s_pDefaultLogger;
+    }
+
+    static const std::string DEFAULT_LOGGER_NAME = "DEFAULT";
+    static const std::string DEFAULT_LOGGER_PATTERN = "[%^%l%$] [%n]: %v";
+
     std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_st(DEFAULT_LOGGER_NAME);
     logger->set_pattern(DEFAULT_LOGGER_PATTERN);
 
@@ -63,7 +70,7 @@ std::shared_ptr<spdlog::logger> Logger::GetDefaultLogger() noexcept
 bool Logger::Init()
 {
     if (IsInitialized()) {
-        AM_LOG_INFO("Log system is already initialized");
+        AM_LOG_WARN("Log system is already initialized");
         return true;
     }
 
@@ -78,7 +85,6 @@ bool Logger::Init()
 void Logger::Terminate() noexcept
 {
     s_pInst = nullptr;
-    s_pDefaultLogger = nullptr;
 }
 
 

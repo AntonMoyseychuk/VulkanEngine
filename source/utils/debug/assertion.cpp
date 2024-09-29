@@ -9,7 +9,7 @@ void AssertImpl(bool condition, int loggerType, const char* file, const char* fu
         const Logger::LoggerType type = static_cast<Logger::LoggerType>(loggerType);
         assert(type >= 0 && type < Logger::LoggerType_COUNT);
 
-        Logger::Instance()->Error(type, false, file, function, line, conditionStr, message);
+        LoggerError(type, false, file, function, line, conditionStr, message);
         AM_DEBUG_BREAK();
     }
 }

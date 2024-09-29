@@ -71,26 +71,41 @@ AM_MAYBE_UNUSED static const nlohmann::json& GetOsBuildTypeSpecificJsonObj(const
 
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData) 
-{
-    Logger* pLogger = static_cast<Logger*>(pUserData);
-    
+{   
     if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+        AM_LOG_GRAPHICS_API_INFO(pCallbackData->pMessage);
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
-        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+        AM_LOG_GRAPHICS_API_INFO(pCallbackData->pMessage);
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        pLogger->Warn(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
+        AM_LOG_GRAPHICS_API_WARN(pCallbackData->pMessage);
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        pLogger->Error(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, pCallbackData->pMessage);
-        AM_DEBUG_BREAK();
+        AM_ASSERT_GRAPHICS_API(false, pCallbackData->pMessage);
     } else {
         const std::string message = fmt::format("[UNKNOWN]: {}", pCallbackData->pMessage);
-        pLogger->Info(Logger::LoggerType_GRAPHICS_API, true, nullptr, nullptr, 0, nullptr, message.c_str());
+        AM_LOG_GRAPHICS_API_INFO(message.c_str());
     }
     
     return VK_FALSE;
@@ -119,7 +134,13 @@ static VkDebugUtilsMessageSeverityFlagBitsEXT GetVkDebugUtilsMessageSeverityFlag
         } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
         } else {
-            AM_ASSERT_GRAPHICS_API(false, "Invalid Vulkan callback message severity JSON tokken {}", severity);
+            AM_ASSERT(false, "Invalid Vulkan callback message severity JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
+                severity, 
+                JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL, 
+                JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR, 
+                JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING,
+                JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO,
+                JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE);
         }
 
         return severityBits;
@@ -159,7 +180,12 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
         } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE) {
             typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         } else {
-            AM_ASSERT_GRAPHICS_API(false, "Invalid Vulkan callback message type JSON tokken {}", type);
+            AM_ASSERT(false, "Invalid Vulkan callback message type JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
+                type, 
+                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL, 
+                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL, 
+                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION,
+                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE);
         }
 
         return typeBits;
@@ -202,14 +228,12 @@ static VulkanDebugCallbackInitInfo ParseVulkankAppInitInfoJson(const nlohmann::j
 
 static VkDebugUtilsMessengerCreateInfoEXT GetVkDebugUtilsMessengerCreateInfo(const VulkanDebugCallbackInitInfo& initInfo) noexcept
 {
-    AM_ASSERT(Logger::IsInitialized(), "Logger must be initialized by the time Vukan initialization");
-
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = initInfo.messageSeverity;
     createInfo.messageType = initInfo.messageType;
     createInfo.pfnUserCallback = initInfo.pCallback;
-    createInfo.pUserData = Logger::Instance();
+    createInfo.pUserData = nullptr;
 
     return createInfo;
 }
@@ -217,7 +241,7 @@ static VkDebugUtilsMessengerCreateInfoEXT GetVkDebugUtilsMessengerCreateInfo(con
 
 
 // Potentialy unsafe, since lifetime of chPtrArr must be less of equal than strArr
-AM_MAYBE_UNUSED static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& inoutChPtrArrSize, const std::vector<std::string>& strArr) noexcept
+static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& inoutChPtrArrSize, const std::vector<std::string>& strArr) noexcept
 {
     AM_ASSERT(strArr.size() <= inoutChPtrArrSize, "Target chPtrArr size is less than source strArr");
 
@@ -250,12 +274,12 @@ static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::fi
 
 AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const VkLayerProperties& layer) noexcept
 {
-    return fmt::format("{} -> \033[33m{}\033[0m", layer.layerName, layer.description);
+    return fmt::format("{} -> {}{}{}", layer.layerName, AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layer.description, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
 AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const std::string& layerDesc) noexcept
 {
-    return fmt::format("{}{}{}", "\033[33m", layerDesc, "\033[0m");
+    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layerDesc, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
 template<typename ValidationLayerT>
@@ -273,12 +297,12 @@ AM_MAYBE_UNUSED static std::string MakeVulkanValidationLayersListString(const st
 
 AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
 {
-    return fmt::format("{}{}{}", "\033[33m", extension.extensionName, "\033[0m");
+    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension.extensionName, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
 AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
 {
-    return fmt::format("{}{}{}", "\033[33m", extension, "\033[0m");
+    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
 template<typename ExtensionT>
@@ -355,7 +379,7 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkConf
         if (std::find_if(availableVkExtensions.cbegin(), availableVkExtensions.cend(), FindPred) != availableVkExtensions.cend()) {
             result.emplace_back(requestedExtension);
         } else {
-            AM_LOG_GRAPHICS_API_ERROR("Requested {} Vulkan extension in not found", requestedExtension);
+            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan extension in not found. Skipped", requestedExtension);
         }
     }
 
@@ -377,7 +401,7 @@ VulkanApplication& VulkanApplication::Instance() noexcept
 bool VulkanApplication::Init() noexcept
 {
     if (IsInitialized()) {
-        AM_LOG_INFO("Application is already initialized");
+        AM_LOG_WARN("Application is already initialized");
         return true;
     }
 
@@ -400,20 +424,24 @@ bool VulkanApplication::Init() noexcept
     }
 
     if (!InitVulkan(appInitInfo.title.c_str())) {
+        Terminate();
         return false;
     }
 
     s_pAppInst = std::unique_ptr<VulkanApplication>(new VulkanApplication(appInitInfo));
     if (!s_pAppInst) {
-        AM_ASSERT(false, "VulkanApplication allocation failed");
+        AM_ASSERT(false, "VulkanApplication instance allocation failed");
+        Terminate();
         return false;
     }
 
     if (!s_pAppInst->IsInstanceInitialized()) {
+        AM_ASSERT(false, "VulkanApplication instance initialization failed");
         Terminate();
+        return false;
     }
 
-    return s_pAppInst != nullptr;
+    return true;
 }
 
 
@@ -441,30 +469,12 @@ void VulkanApplication::Run() noexcept
 
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    } else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
-
-
-static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
-
-
 bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo &initInfo) noexcept
 {
     VkDebugUtilsMessengerCreateInfoEXT createInfo = GetVkDebugUtilsMessengerCreateInfo(initInfo);
 
     if (CreateDebugUtilsMessengerEXT(s_vulkanState.instance, &createInfo, nullptr, &s_vulkanState.debugMessenger) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan debug messenger creation failed");
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan debug callback initialization failed");
         return false;
     }
 
@@ -478,15 +488,24 @@ void VulkanApplication::TerminateVulkanDebugCallback() noexcept
 }
 #endif
 
+
+bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
+{
+    AM_ASSERT_GRAPHICS_API(true, "Vulkan physical device initialization failed");
+    return true;
+}
+
+
 bool VulkanApplication::InitVulkan(const char *appName) noexcept
 {
     if (!appName) {
-        AM_ASSERT(false, "appName is nullptr");
-        return false;
+        appName = "Default Vulkan Application";
+        AM_LOG_WARN("Vulkan appName is nullptr. Using default name {}", appName);
     }
 
     const std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(paths::AM_VULKAN_CONFIG_FILE_PATH);
     if (!jsonOpt.has_value()) {
+        AM_ASSERT(false, "Failed to parse Vulkan config file");
         return false;
     }
 
@@ -528,9 +547,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     }
 
     instCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayersCount);
-#endif
 
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     VulkanDebugCallbackInitInfo debugInitInfo = ParseVulkankAppInitInfoJson(base);
     VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = GetVkDebugUtilsMessengerCreateInfo(debugInitInfo);
     instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessangerCreateInfo;
@@ -538,6 +555,10 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
 
     if (vkCreateInstance(&instCreateInfo, nullptr, &s_vulkanState.instance) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan instance creation failed");
+        return false;
+    }
+    
+    if (!InitVulkanPhysicalDevice()) {
         return false;
     }
     
@@ -567,7 +588,6 @@ VulkanApplication::VulkanApplication(const VulkanAppInitInfo &appInitInfo)
     glfwWindowHint(GLFW_RESIZABLE, appInitInfo.resizable ? GLFW_TRUE : GLFW_FALSE);
 
     m_glfwWindow = glfwCreateWindow((int)appInitInfo.width, (int)appInitInfo.height, appInitInfo.title.c_str(), nullptr, nullptr);
-    AM_ASSERT_WINDOW(m_glfwWindow, "GLFW window creation failed");
 }
 
 

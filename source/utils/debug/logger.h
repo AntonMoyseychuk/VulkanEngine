@@ -8,13 +8,25 @@
 #include <cstdint>
 
 
+#define AM_OUTPUT_COLOR_RESET_ASCII_CODE      "\033[0m"
+#define AM_OUTPUT_COLOR_BLACK_ASCII_CODE      "\033[30m"
+#define AM_OUTPUT_COLOR_RED_ASCII_CODE        "\033[31m"
+#define AM_OUTPUT_COLOR_GREEN_ASCII_CODE      "\033[32m"
+#define AM_OUTPUT_COLOR_YELLOW_ASCII_CODE     "\033[33m"
+#define AM_OUTPUT_COLOR_BLUE_ASCII_CODE       "\033[34m"
+#define AM_OUTPUT_COLOR_MAGENTA_ASCII_CODE    "\033[35m"
+#define AM_OUTPUT_COLOR_CYAN_ASCII_CODE       "\033[36m"
+#define AM_OUTPUT_COLOR_WHITE_ASCII_CODE      "\033[37m"
+
+#define AM_MAKE_COLORED_TEXT(color, text) (color text AM_OUTPUT_COLOR_RESET_ASCII_CODE)
+
 class Logger
 {
 public:
     enum LoggerType
     {
         // NOTE: Don't change order of this enum, needs remake in the future
-        LoggerType_COMMON,
+        LoggerType_APP,
         LoggerType_GRAPHICS_API,
         LoggerType_WINDOW_SYSTEM,
         LoggerType_COUNT,
@@ -68,9 +80,6 @@ private:
     bool IsCustomLogger(LoggerType type) const noexcept;
 
 private:
-    static inline const std::string DEFAULT_LOGGER_NAME = "default";
-    static inline const std::string DEFAULT_LOGGER_PATTERN = "[%^%l%$] [%n]: %v";
-
     static inline std::unique_ptr<Logger> s_pInst = nullptr;
     static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = CreateDefaultSpdlogger();
 
@@ -97,9 +106,9 @@ void amTerminateLogSystem() noexcept;
 
 
 #if defined(AM_LOGGING_ENABLED)
-    #define AM_LOG_ERROR(format, ...) LoggerError(Logger::LoggerType_COMMON, false, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
-    #define AM_LOG_WARN(format, ...)  LoggerWarn(Logger::LoggerType_COMMON, true, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
-    #define AM_LOG_INFO(format, ...)  LoggerInfo(Logger::LoggerType_COMMON, true, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
+    #define AM_LOG_ERROR(format, ...) LoggerError(Logger::LoggerType_APP, false, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
+    #define AM_LOG_WARN(format, ...)  LoggerWarn(Logger::LoggerType_APP, true, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
+    #define AM_LOG_INFO(format, ...)  LoggerInfo(Logger::LoggerType_APP, true, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
 
     #define AM_LOG_WINDOW_ERROR(format, ...) LoggerError(Logger::LoggerType_WINDOW_SYSTEM, false, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)
     #define AM_LOG_WINDOW_WARN(format, ...)  LoggerWarn(Logger::LoggerType_WINDOW_SYSTEM, true, __FILE__, __FUNCTION__, __LINE__, nullptr, format, __VA_ARGS__)

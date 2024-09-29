@@ -65,10 +65,13 @@ inline void LoggerInfo(Logger::LoggerType type, bool printMessageOnly, const cha
 template <typename... Args>
 inline void LoggerWarn(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
+    std::string message = fmt::format(format, std::forward<Args>(args)...);
+    std::string coloredMessage = fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, message, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
+
     if (Logger::IsInitialized()) {
-        Logger::Instance()->Warn(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+        Logger::Instance()->Warn(type, printMessageOnly, file, function, line, additionalInfo, coloredMessage.c_str());
     } else {
-        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::warn, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::warn, printMessageOnly, file, function, line, additionalInfo, coloredMessage.c_str());
     }
 }
 
@@ -76,9 +79,11 @@ inline void LoggerWarn(Logger::LoggerType type, bool printMessageOnly, const cha
 template <typename... Args>
 inline void LoggerError(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
+    std::string message = fmt::format(format, std::forward<Args>(args)...);
+
     if (Logger::IsInitialized()) {
-        Logger::Instance()->Error(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+        Logger::Instance()->Error(type, printMessageOnly, file, function, line, additionalInfo, "{}{}{}", AM_OUTPUT_COLOR_RED_ASCII_CODE, message, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
     } else {
-        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::err, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
+        utils::SpdlogPrint(Logger::GetDefaultLogger(), spdlog::level::level_enum::err, printMessageOnly, file, function, line, additionalInfo, "{}{}{}", AM_OUTPUT_COLOR_RED_ASCII_CODE, message, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
     }
 }
