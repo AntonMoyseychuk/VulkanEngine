@@ -4,42 +4,64 @@
 
 static constexpr const char* VULKAN_ENGINE_NAME = "Vulkan Engine";
 
-static constexpr const char* JSON_COMMON_CONFIG_OS_FIELD_NAME = "os";
-static constexpr const char* JSON_COMMON_CONFIG_BUILD_TYPE_FIELD_NAME = "build_type";
+static constexpr const char* JSON_VK_CONFIG_OS_FIELD_NAME = "os";
+static constexpr const char* JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME = "build_type";
 
 #if defined(AM_OS_WINDOWS)
-    static constexpr const char* JSON_COMMON_CONFIG_OS_NAME = "win32";
+    static constexpr const char* JSON_VK_CONFIG_OS_NAME = "win32";
 #else
     #error Currently, only Windows is supported
 #endif
 
 #if defined(AM_DEBUG)
-    static constexpr const char* JSON_COMMON_CONFIG_BUILD_TYPE = "debug";
+    static constexpr const char* JSON_VK_CONFIG_BUILD_TYPE = "debug";
 #else
-    static constexpr const char* JSON_COMMON_CONFIG_BUILD_TYPE = "release";
+    static constexpr const char* JSON_VK_CONFIG_BUILD_TYPE = "release";
 #endif
 
 
-// Vulkan config specific field names
-static constexpr const char* JSON_VK_CONFIG_VALIDATION_LAYERS_FIELD_NAME = "validation_layers";
-static constexpr const char* JSON_VK_CONFIG_EXTENSIONS_FIELD_NAME = "extensions";
+// Vulkan instance config specific field names
+static constexpr const char* JSON_VK_CONFIG_INSTANCE_FIELD_NAME = "instance";
+
+static constexpr const char* JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME = "validation_layers";
+static constexpr const char* JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME = "extensions";
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_FIELD_NAME = "callback";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_FIELD_NAME = "severity";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPES_FIELD_NAME = "message_types";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME = "callback";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME = "severity";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME = "message_types";
 
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL = "all";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR = "error";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING = "warning";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO = "info";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE = "verbose";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ALL = "all";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ERROR = "error";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_WARNING = "warning";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_INFO = "info";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_VERBOSE = "verbose";
 
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL = "all";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL = "general";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION = "validation";
-    static constexpr const char* JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE = "performance";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_ALL = "all";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_GENERAL = "general";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_VALIDATION = "validation";
+    static constexpr const char* JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_PERFORMANCE = "performance";
 #endif
+
+
+// Vulkan physical device config specific field names
+static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME = "physical_device";
+
+static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_FIELD_NAME = "requirements";
+static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME = "types";
+
+struct ParsedVulkanPhysicalDeviceType
+{
+    const char* str;
+    const uint64_t priority;
+};
+
+static constexpr ParsedVulkanPhysicalDeviceType JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_VIRTUAL    = {"virtual", 1};
+static constexpr ParsedVulkanPhysicalDeviceType JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_CPU        = {"cpu", 2};
+static constexpr ParsedVulkanPhysicalDeviceType JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_INTEGRATED = {"integrated", 3};
+static constexpr ParsedVulkanPhysicalDeviceType JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_DISCRETE   = {"discrete", 4};
+
+
 
 // Application config specific field names
 static constexpr const char* JSON_APP_CONFIG_WINDOW_FIELD_NAME = "window";
@@ -53,8 +75,19 @@ AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_EXTENSIONS_COUNT = 64u;
 AM_MAYBE_UNUSED static constexpr size_t MAX_VULKAN_VALIDATION_LAYERS_COUNT = 64u;
 
 
-#if defined(AM_LOGGING_ENABLED)
-struct VulkanDebugCallbackInitInfo
+struct VulkanApplication::VulkanAppInitInfo
+{
+    std::string title = {};
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    
+    bool resizable = false;
+};
+
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+struct VulkanApplication::VulkanDebugCallbackInitInfo
 {
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
     VkDebugUtilsMessageTypeFlagsEXT messageType;
@@ -63,10 +96,49 @@ struct VulkanDebugCallbackInitInfo
 #endif
 
 
-AM_MAYBE_UNUSED static const nlohmann::json& GetOsBuildTypeSpecificJsonObj(const nlohmann::json& base) noexcept
+struct VulkanApplication::VulkanInstanceInitInfo
 {
-    const nlohmann::json& os = base[JSON_COMMON_CONFIG_OS_FIELD_NAME][JSON_COMMON_CONFIG_OS_NAME];
-    return os[JSON_COMMON_CONFIG_BUILD_TYPE_FIELD_NAME][JSON_COMMON_CONFIG_BUILD_TYPE];
+    std::vector<std::string> extensionNames;
+    std::vector<std::string> validationLayerNames;
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    VulkanDebugCallbackInitInfo debugCallbackInitInfo;
+#endif
+};
+
+
+struct VulkanApplication::VulkanPhysDeviceInitInfo
+{
+    std::vector<std::string> types;
+};
+
+
+using VulkanAppInitInfo = VulkanApplication::VulkanAppInitInfo;
+using VulkanDebugCallbackInitInfo = VulkanApplication::VulkanDebugCallbackInitInfo;
+using VulkanInstanceInitInfo = VulkanApplication::VulkanInstanceInitInfo;
+using VulkanPhysDeviceInitInfo = VulkanApplication::VulkanPhysDeviceInitInfo;
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+using VulkanDebugCallbackInitInfo = VulkanApplication::VulkanDebugCallbackInitInfo;
+#endif
+
+
+struct VulkanPhysicalDeviceCandidate
+{
+    bool operator<(const VulkanPhysicalDeviceCandidate& other) const noexcept
+    {
+        return priority < other.priority;
+    }
+
+    VkPhysicalDevice device;
+    uint64_t priority;
+};
+
+
+AM_MAYBE_UNUSED static const nlohmann::json& GetVkInstanceOsBuildTypeSpecificJsonObj(const nlohmann::json& base) noexcept
+{
+    const nlohmann::json& os = base[JSON_VK_CONFIG_OS_FIELD_NAME][JSON_VK_CONFIG_OS_NAME];
+    return os[JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME][JSON_VK_CONFIG_BUILD_TYPE];
 }
 
 
@@ -123,24 +195,24 @@ static VkDebugUtilsMessageSeverityFlagBitsEXT GetVkDebugUtilsMessageSeverityFlag
     {
         uint32_t severityBits = 0;
 
-        if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL) {
+        if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ALL) {
             severityBits = SEVERITY_ALL;
-        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR) {
+        } else if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ERROR) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING) {
+        } else if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_WARNING) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO) {
+        } else if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_INFO) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
-        } else if (severity == JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE) {
+        } else if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_VERBOSE) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
         } else {
             AM_ASSERT(false, "Invalid Vulkan callback message severity JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
                 severity, 
-                JSON_VK_CONFIG_CALLBACK_SEVERITY_ALL, 
-                JSON_VK_CONFIG_CALLBACK_SEVERITY_ERROR, 
-                JSON_VK_CONFIG_CALLBACK_SEVERITY_WARNING,
-                JSON_VK_CONFIG_CALLBACK_SEVERITY_INFO,
-                JSON_VK_CONFIG_CALLBACK_SEVERITY_VERBOSE);
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ALL, 
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ERROR, 
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_WARNING,
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_INFO,
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_VERBOSE);
         }
 
         return severityBits;
@@ -171,21 +243,21 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
     {
         uint32_t typeBits = 0;
 
-        if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL) {
+        if (type == JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_ALL) {
             typeBits = TYPE_ALL;
-        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL) {
+        } else if (type == JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_GENERAL) {
             typeBits = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
-        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION) {
+        } else if (type == JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_VALIDATION) {
             typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
-        } else if (type == JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE) {
+        } else if (type == JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_PERFORMANCE) {
             typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         } else {
             AM_ASSERT(false, "Invalid Vulkan callback message type JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
                 type, 
-                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_ALL, 
-                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_GENERAL, 
-                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_VALIDATION,
-                JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPE_PERFORMANCE);
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_ALL, 
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_GENERAL, 
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_VALIDATION,
+                JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_PERFORMANCE);
         }
 
         return typeBits;
@@ -206,19 +278,19 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
 }
 
 
-static VulkanDebugCallbackInitInfo ParseVulkankAppInitInfoJson(const nlohmann::json& vkConfigJsonFile) noexcept
+static VulkanDebugCallbackInitInfo ParseVulkanCallbackInitInfoJson(const nlohmann::json& vkInstanceJson) noexcept
 {
     VulkanDebugCallbackInitInfo result = {};
     result.pCallback = VulkanDebugCallback;
 
-    const nlohmann::json& build = GetOsBuildTypeSpecificJsonObj(vkConfigJsonFile);
-    const nlohmann::json& callback = build[JSON_VK_CONFIG_CALLBACK_FIELD_NAME];
+    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
+    const nlohmann::json& callback = build[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
 
-    const nlohmann::json& severity = callback[JSON_VK_CONFIG_CALLBACK_SEVERITY_FIELD_NAME];
+    const nlohmann::json& severity = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME];
     std::vector<std::string> severityTokens = amjson::ParseArrayJson<std::string>(severity);
     result.messageSeverity = GetVkDebugUtilsMessageSeverityFlagBits(severityTokens);
 
-    const nlohmann::json& messageTypes = callback[JSON_VK_CONFIG_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
+    const nlohmann::json& messageTypes = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
     std::vector<std::string> messageTypeTokens = amjson::ParseArrayJson<std::string>(messageTypes);
     result.messageType = GetVkDebugUtilsMessageTypeFlags(messageTypeTokens);
 
@@ -249,26 +321,6 @@ static void MapArrayOfStringToArrayOfCharPtrs(const char** chPtrArr, size_t& ino
     for(size_t i = 0; i < inoutChPtrArrSize; ++i) {
         chPtrArr[i] = strArr[i].data();
     }
-}
-
-
-static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
-{
-    std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
-    if (!jsonOpt.has_value()) {
-        return {};
-    }
-
-    const nlohmann::json& build = GetOsBuildTypeSpecificJsonObj(jsonOpt.value());
-    const nlohmann::json& window = build[JSON_APP_CONFIG_WINDOW_FIELD_NAME];
-
-    VulkanAppInitInfo appInitInfo = {};
-    window[JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME].get_to(appInitInfo.title);
-    window[JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME].get_to(appInitInfo.width);
-    window[JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME].get_to(appInitInfo.height);
-    window[JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME].get_to(appInitInfo.resizable);
-
-    return appInitInfo;
 }
 
 
@@ -318,7 +370,7 @@ AM_MAYBE_UNUSED static std::string MakeVulkanExtensionsListString(const std::vec
 }
 
 
-AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const nlohmann::json& vkConfigJsonFile) noexcept
+AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const nlohmann::json& vkInstanceJson) noexcept
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -328,8 +380,8 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const 
 
     AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanValidationLayersListString(availableLayers));
 
-    const nlohmann::json& build = GetOsBuildTypeSpecificJsonObj(vkConfigJsonFile);
-    const nlohmann::json& layers = build[JSON_VK_CONFIG_VALIDATION_LAYERS_FIELD_NAME];
+    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
+    const nlohmann::json& layers = build[JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME];
     std::vector<std::string> requestedLayers = amjson::ParseArrayJson<std::string>(layers);
     
     std::vector<std::string> result;
@@ -354,7 +406,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const 
 }
 
 
-static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkConfigJsonFile) noexcept
+static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkInstanceJson) noexcept
 {
     uint32_t availableVulkanExtCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, nullptr);
@@ -364,8 +416,8 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkConf
 
     AM_LOG_GRAPHICS_API_INFO("Available Vulkan extensions:\n{}", MakeVulkanExtensionsListString(availableVkExtensions));
 
-    const nlohmann::json& build = GetOsBuildTypeSpecificJsonObj(vkConfigJsonFile);
-    const nlohmann::json& extensions = build[JSON_VK_CONFIG_EXTENSIONS_FIELD_NAME];
+    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
+    const nlohmann::json& extensions = build[JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME];
     std::vector<std::string> requestedExtensions = amjson::ParseArrayJson<std::string>(extensions);
     
     std::vector<std::string> result;
@@ -387,6 +439,117 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkConf
     AM_LOG_GRAPHICS_API_INFO("Included Vulkan extensions:\n{}", MakeVulkanExtensionsListString(result));
 
     return result;
+}
+
+
+static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
+{
+    std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
+    if (!jsonOpt.has_value()) {
+        return {};
+    }
+
+    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(jsonOpt.value());
+    const nlohmann::json& window = build[JSON_APP_CONFIG_WINDOW_FIELD_NAME];
+
+    VulkanAppInitInfo appInitInfo = {};
+    window[JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME].get_to(appInitInfo.title);
+    window[JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME].get_to(appInitInfo.width);
+    window[JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME].get_to(appInitInfo.height);
+    window[JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME].get_to(appInitInfo.resizable);
+
+    return appInitInfo;
+}
+
+
+static VulkanInstanceInitInfo ParseVulkanInstanceInitInfoJson(const nlohmann::json& vkInstanceJson) noexcept
+{
+    VulkanInstanceInitInfo instInitInfo = {};
+    instInitInfo.extensionNames = GetVulkanExtensions(vkInstanceJson);
+    instInitInfo.validationLayerNames = GetVulkanValidationLayers(vkInstanceJson);
+    instInitInfo.debugCallbackInitInfo = ParseVulkanCallbackInitInfoJson(vkInstanceJson);
+    return instInitInfo;
+}
+
+
+static VulkanPhysDeviceInitInfo ParseVulkanPhysDeviceInitInfoJson(const nlohmann::json& vkPhysDeviceJson) noexcept
+{
+    VulkanPhysDeviceInitInfo deviceInitInfo = {};
+
+    const nlohmann::json& requirementsJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_FIELD_NAME];
+    
+    const nlohmann::json& deviceTypesJson = requirementsJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME];
+    deviceInitInfo.types = amjson::ParseArrayJson<std::string>(deviceTypesJson);
+
+    return deviceInitInfo;
+}
+
+
+static inline constexpr const ParsedVulkanPhysicalDeviceType* ConvertVkPhysicalDeviceTypeToParsedType(VkPhysicalDeviceType type) noexcept
+{
+    switch (type) {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return &JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_DISCRETE;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return &JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_CPU;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return &JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_INTEGRATED;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return &JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPE_VIRTUAL;
+            break;
+        default:
+            return nullptr;
+    }
+}
+
+
+static uint64_t GetVulkanDeviceTypePriority(VkPhysicalDeviceType type, const std::vector<std::string>& requiredTypesStrs) noexcept
+{
+    const ParsedVulkanPhysicalDeviceType* parsedType = ConvertVkPhysicalDeviceTypeToParsedType(type);
+
+    if (!parsedType) {
+        return 0;
+    }
+
+    for (const std::string& requiredType : requiredTypesStrs) {
+        if (requiredType == parsedType->str) {
+            return parsedType->priority;
+        }
+    }
+
+    return 0;
+}
+
+
+static uint64_t GetVulkanPhysicalDevicePriority(VkPhysicalDevice device, const VulkanPhysDeviceInitInfo& requirements) noexcept
+{
+    if (device == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device passed to {}", __FUNCTION__);
+        return 0;
+    }
+
+    VkPhysicalDeviceProperties deviceProps = {};
+    vkGetPhysicalDeviceProperties(device, &deviceProps);
+    
+    uint64_t priority = 0;
+
+    const uint64_t typePriority = GetVulkanDeviceTypePriority(deviceProps.deviceType, requirements.types);
+    if (!typePriority) {
+        const char* message = AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_RED_ASCII_CODE, "Device '{}' with type '{}' doesn't matches required types");
+
+        AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
+    } else {
+        const char* message = AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Device '{}' with type '{}' match required types");
+
+        AM_LOG_GRAPHICS_API_INFO(message, deviceProps.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(deviceProps.deviceType)->str);
+    }
+
+    priority += typePriority;
+
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    return priority;
 }
 
 
@@ -423,7 +586,7 @@ bool VulkanApplication::Init() noexcept
         return false;
     }
 
-    if (!InitVulkan(appInitInfo.title.c_str())) {
+    if (!InitVulkan()) {
         Terminate();
         return false;
     }
@@ -489,31 +652,11 @@ void VulkanApplication::TerminateVulkanDebugCallback() noexcept
 #endif
 
 
-bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
+bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInfo) noexcept
 {
-    AM_ASSERT_GRAPHICS_API(true, "Vulkan physical device initialization failed");
-    return true;
-}
-
-
-bool VulkanApplication::InitVulkan(const char *appName) noexcept
-{
-    if (!appName) {
-        appName = "Default Vulkan Application";
-        AM_LOG_WARN("Vulkan appName is nullptr. Using default name {}", appName);
-    }
-
-    const std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(paths::AM_VULKAN_CONFIG_FILE_PATH);
-    if (!jsonOpt.has_value()) {
-        AM_ASSERT(false, "Failed to parse Vulkan config file");
-        return false;
-    }
-
-    const nlohmann::json& base = jsonOpt.value();
-
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = appName;
+    appInfo.pApplicationName = "Default Vulkan Application";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = VULKAN_ENGINE_NAME;
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -525,7 +668,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     instCreateInfo.enabledLayerCount = 0;
     instCreateInfo.ppEnabledLayerNames = nullptr;
 
-    const std::vector<std::string> extensionNames = GetVulkanExtensions(base);
+    const std::vector<std::string>& extensionNames = initInfo.extensionNames;
     const char* extensionNamesChar[MAX_VULKAN_EXTENSIONS_COUNT] = {};
     size_t extensionsCount = extensionNames.size();
 
@@ -537,7 +680,7 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
     instCreateInfo.enabledExtensionCount = static_cast<uint32_t>(extensionsCount);
     
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    const std::vector<std::string> validationLayerNames = GetVulkanValidationLayers(base);
+    const std::vector<std::string>& validationLayerNames = initInfo.validationLayerNames;
     const char* validationLayerNamesChar[MAX_VULKAN_VALIDATION_LAYERS_COUNT] = {};
     size_t validationLayersCount = validationLayerNames.size();
  
@@ -548,8 +691,9 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
 
     instCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayersCount);
 
-    VulkanDebugCallbackInitInfo debugInitInfo = ParseVulkankAppInitInfoJson(base);
-    VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = GetVkDebugUtilsMessengerCreateInfo(debugInitInfo);
+    const VulkanDebugCallbackInitInfo& debugCallbackInitInfo = initInfo.debugCallbackInitInfo;
+    
+    VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = GetVkDebugUtilsMessengerCreateInfo(debugCallbackInitInfo);
     instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessangerCreateInfo;
 #endif
 
@@ -557,16 +701,78 @@ bool VulkanApplication::InitVulkan(const char *appName) noexcept
         AM_ASSERT_GRAPHICS_API(false, "Vulkan instance creation failed");
         return false;
     }
-    
-    if (!InitVulkanPhysicalDevice()) {
-        return false;
-    }
-    
+
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    if (!InitVulkanDebugCallback(debugInitInfo)) {
+    if (!InitVulkanDebugCallback(debugCallbackInitInfo)) {
         return false;
     }
 #endif
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanInstance() noexcept
+{
+    vkDestroyInstance(s_vulkanState.instance, nullptr);
+}
+
+
+bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept
+{
+    AM_ASSERT_GRAPHICS_API(s_vulkanState.instance != VK_NULL_HANDLE, "Vulkan instance must be initialized before physical device initialization");
+
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(s_vulkanState.instance, &deviceCount, nullptr);
+
+    if (deviceCount <= 0) {
+        AM_ASSERT_GRAPHICS_API(false, "There are no any physical graphics devices that support Vulkan");
+        return false;
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(s_vulkanState.instance, &deviceCount, devices.data());
+
+    std::multiset<VulkanPhysicalDeviceCandidate> suitableDevices;
+
+    AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
+    for (VkPhysicalDevice device : devices) {
+        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(device, initInfo);
+        if (devicePriority) {
+            suitableDevices.insert({device, devicePriority});
+        }
+    }
+
+    if (suitableDevices.empty()) {
+        AM_ASSERT_GRAPHICS_API(false, "There are no any Vulkan physical graphics devices that support required properties");
+        return false;
+    }
+
+    s_vulkanState.device = suitableDevices.rbegin()->device;
+
+    return true;
+}
+
+
+bool VulkanApplication::InitVulkan() noexcept
+{
+    const std::optional<nlohmann::json> vulkanConfigOpt = amjson::ParseJson(paths::AM_VULKAN_CONFIG_FILE_PATH);
+    if (!vulkanConfigOpt.has_value()) {
+        AM_ASSERT(false, "Failed to parse Vulkan config file");
+        return false;
+    }
+
+    const nlohmann::json& vulkanConfigJson = vulkanConfigOpt.value();
+    const nlohmann::json& instanceJson = vulkanConfigJson[JSON_VK_CONFIG_INSTANCE_FIELD_NAME];
+    const nlohmann::json& physDeviceJson = vulkanConfigJson[JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME];
+
+    if (!InitVulkanInstance(ParseVulkanInstanceInitInfoJson(instanceJson))) {
+        return false;
+    }
+    
+    if (!InitVulkanPhysicalDevice(ParseVulkanPhysDeviceInitInfoJson(physDeviceJson))) {
+        return false;
+    }
 
     return true;
 }
@@ -578,7 +784,7 @@ void VulkanApplication::TerminateVulkan() noexcept
     TerminateVulkanDebugCallback();
 #endif
 
-    vkDestroyInstance(s_vulkanState.instance, nullptr);
+    TerminateVulkanInstance();
 }
 
 

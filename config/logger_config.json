@@ -1,6 +1,6 @@
 {
     "loggers": {
-        "common": {
+        "application": {
             "name": "APP",
             "pattern": "[%^%l%$] [%n]: %v"
         },

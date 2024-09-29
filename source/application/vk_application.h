@@ -7,24 +7,17 @@
 #include <GLFW/glfw3.h>
 
 
-struct VulkanAppInitInfo
-{
-    std::string title;
-
-    uint32_t width;
-    uint32_t height;
-
-    bool resizable = false;
-};
-
-
-#if defined(AM_LOGGING_ENABLED)
-struct VulkanDebugCallbackInitInfo;
-#endif
-
-
 class VulkanApplication
 {
+public:
+    struct VulkanAppInitInfo;
+    struct VulkanInstanceInitInfo;
+    struct VulkanPhysDeviceInitInfo;
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    struct VulkanDebugCallbackInitInfo;
+#endif
+
 public:
     static VulkanApplication& Instance() noexcept;
     
@@ -49,9 +42,12 @@ private:
     static void TerminateVulkanDebugCallback() noexcept;
 #endif
 
-    static bool InitVulkanPhysicalDevice() noexcept;
+    static bool InitVulkanInstance(const VulkanInstanceInitInfo& initInfo) noexcept;
+    static void TerminateVulkanInstance() noexcept;
 
-    static bool InitVulkan(const char* appName) noexcept;
+    static bool InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept;
+
+    static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
 private:

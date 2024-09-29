@@ -1,33 +1,32 @@
 {
-    "os": {
-        "win32": {
-            "build_type": {
-                "debug": {
-                    "validation_layers": [
-                        "VK_LAYER_KHRONOS_validation"
-                    ],
+    "instance": {
+        "os": {
+            "win32": {
+                "build_type": {
+                    "debug": {
+                        "validation_layers": [ "VK_LAYER_KHRONOS_validation" ],
 
-                    "extensions": [
-                        "VK_EXT_debug_utils",
+                        "extensions": [ "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils" ],
+
+                        "callback": {
+                            "severity": ["warning", "error"],
+                            "message_types": ["all"]
+                        }
+                    },
+
+                    "release": {
+                        "validation_layers": [],
                         
-                        "VK_KHR_surface",
-                        "VK_KHR_win32_surface"
-                    ],
-
-                    "callback": {
-                        "severity": ["warning", "error"],
-                        "message_types": ["all"]
+                        "extensions": [ "VK_KHR_surface", "VK_KHR_win32_surface" ]
                     }
-                },
-
-                "release": {
-                    "validation_layers": [],
-                    "extensions": [
-                        "VK_KHR_surface",
-                        "VK_KHR_win32_surface"
-                    ]
                 }
             }
+        }
+    },
+
+    "physical_device": {
+        "requirements": {
+            "types": ["discrete"]
         }
     }
 }
