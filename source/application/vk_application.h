@@ -7,17 +7,85 @@
 #include <GLFW/glfw3.h>
 
 
-class VulkanApplication
+struct VulkanAppInitInfo
 {
-public:
-    struct VulkanAppInitInfo;
-    struct VulkanInstanceInitInfo;
-    struct VulkanPhysDeviceInitInfo;
+    std::string title = {};
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    
+    bool resizable = false;
+};
+
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    struct VulkanDebugCallbackInitInfo;
+struct VulkanDebugCallbackInitInfo
+{
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
+    VkDebugUtilsMessageTypeFlagsEXT messageType;
+    PFN_vkDebugUtilsMessengerCallbackEXT pCallback;
+};
 #endif
 
+
+struct VulkanInstanceInitInfo
+{
+    std::vector<std::string> extensionNames;
+    std::vector<std::string> validationLayerNames;
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    VulkanDebugCallbackInitInfo debugCallbackInitInfo;
+#endif
+};
+
+
+struct VulkanPhysDeviceInitInfo
+{
+    std::vector<std::string> types;
+};
+
+
+struct VulkanLogicalDeviceInitInfo
+{
+
+};
+
+
+struct VulkanQueueFamilyDescs
+{
+    enum RequiredQueueFamilyType
+    {
+        RequiredQueueFamilyType_GRAPHICS,
+        RequiredQueueFamilyType_COUNT
+    };
+
+    struct Desc
+    {
+        std::optional<uint32_t> index;
+        float priority;
+        VkQueueFlagBits flags;
+    };
+
+    VulkanQueueFamilyDescs();
+    bool IsComplete() const noexcept;
+
+    std::vector<Desc> descs;
+};
+
+
+struct VulkanPhysicalDeviceDesc
+{
+    VkPhysicalDevice pPhysicalDevice;
+
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceFeatures features;
+
+    VulkanQueueFamilyDescs queueFamilies;
+};
+
+
+class VulkanApplication
+{
 public:
     static VulkanApplication& Instance() noexcept;
     
@@ -46,6 +114,10 @@ private:
     static void TerminateVulkanInstance() noexcept;
 
     static bool InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept;
+    static void TerminateVulkanPhysicalDevice() noexcept;
+
+    static bool InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInfo& initInfo) noexcept;
+    static void TerminateVulkanLogicalDevice() noexcept;
 
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
@@ -54,7 +126,8 @@ private:
     static bool IsVulkanInstanceInitialized() noexcept;
     static bool IsVulkanDebugCallbackInitialized() noexcept;
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
-
+    static bool IsVulkanLogicalDeviceInitialized() noexcept;
+    
     static bool IsVulkanInitialized() noexcept;
 
 private:
@@ -66,8 +139,9 @@ private:
 private:
     struct VulkanState
     {
-        VkInstance instance;
-        VkPhysicalDevice physicalDevice;
+        VkInstance pInstance;
+        VulkanPhysicalDeviceDesc physicalDeviceDesc;
+        VkDevice pLogicalDevice;
 
         #if defined(AM_LOGGING_ENABLED)
             VkDebugUtilsMessengerEXT debugMessenger;
