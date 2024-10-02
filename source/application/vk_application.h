@@ -47,11 +47,11 @@ struct VulkanPhysDeviceInitInfo
 
 struct VulkanLogicalDeviceInitInfo
 {
-
+    
 };
 
 
-struct VulkanQueueFamilyDescs
+struct VulkanQueueFamilies
 {
     enum RequiredQueueFamilyType
     {
@@ -66,21 +66,58 @@ struct VulkanQueueFamilyDescs
         VkQueueFlagBits flags;
     };
 
-    VulkanQueueFamilyDescs();
+    VulkanQueueFamilies();
     bool IsComplete() const noexcept;
 
     std::vector<Desc> descs;
 };
 
 
-struct VulkanPhysicalDeviceDesc
+struct VulkanInstance
 {
-    VkPhysicalDevice pPhysicalDevice;
+    ~VulkanInstance()
+    {
+        for (const char* extension : extensions) {
+            delete[] extension;
+        }
 
-    VkPhysicalDeviceProperties properties;
-    VkPhysicalDeviceFeatures features;
+    #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+        for (const char* layer : validationLayers) {
+            delete[] layer;
+        }
+    #endif
+    }
 
-    VulkanQueueFamilyDescs queueFamilies;
+    VkInstance pInstance;
+
+    std::vector<char*> extensions;
+
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    std::vector<char*> validationLayers;
+#endif
+
+#if defined(AM_LOGGING_ENABLED)
+    VkDebugUtilsMessengerEXT pDebugMessenger;
+#endif
+};
+
+
+struct VulkanPhysicalDevice
+{
+    VkPhysicalDevice            pDevice;
+
+    VkPhysicalDeviceProperties  properties;
+    VkPhysicalDeviceFeatures    features;
+
+    VulkanQueueFamilies         queueFamilies;
+};
+
+
+struct VulkanLogicalDevice
+{
+    VkDevice pDevice;
+
+    std::vector<VkQueue> queues;
 };
 
 
@@ -139,17 +176,13 @@ private:
 private:
     struct VulkanState
     {
-        VkInstance pInstance;
-        VulkanPhysicalDeviceDesc physicalDeviceDesc;
-        VkDevice pLogicalDevice;
-
-        #if defined(AM_LOGGING_ENABLED)
-            VkDebugUtilsMessengerEXT debugMessenger;
-        #endif
+        VulkanInstance       intance;
+        VulkanPhysicalDevice physicalDevice;
+        VulkanLogicalDevice  logicalDevice;
     };
+    static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 
     static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
-    static inline VulkanState s_vulkanState = {};
 
 private:
     GLFWwindow* m_glfwWindow = nullptr;
