@@ -46,8 +46,6 @@ static constexpr const char* JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME = "ex
 
 // Vulkan physical device config specific field names
 static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME = "physical_device";
-
-static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_FIELD_NAME = "requirements";
 static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME = "types";
 
 
@@ -432,9 +430,7 @@ static VulkanPhysDeviceInitInfo ParseVulkanPhysDeviceInitInfoJson(const nlohmann
 {
     VulkanPhysDeviceInitInfo deviceInitInfo = {};
 
-    const nlohmann::json& requirementsJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_FIELD_NAME];
-    
-    const nlohmann::json& deviceTypesJson = requirementsJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME];
+    const nlohmann::json& deviceTypesJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME];
     deviceInitInfo.types = amjson::ParseArrayJson<std::string>(deviceTypesJson);
 
     return deviceInitInfo;
