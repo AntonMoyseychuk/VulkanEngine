@@ -21,6 +21,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <type_traits>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>

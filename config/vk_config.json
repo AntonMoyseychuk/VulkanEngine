@@ -29,6 +29,6 @@
     },
 
     "logical_device": {
-        
+        "extensions": ["VK_KHR_swapchain"]
     }
 }

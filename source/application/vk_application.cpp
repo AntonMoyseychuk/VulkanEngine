@@ -46,11 +46,12 @@ static constexpr const char* JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME = "ex
 
 // Vulkan physical device config specific field names
 static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME = "physical_device";
-static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME = "types";
+static constexpr const char* JSON_VK_CONFIG_PHYS_DEVICE_TYPES_FIELD_NAME = "types";
 
 
 // Vulkan logical device config specific field names
 static constexpr const char* JSON_VK_CONFIG_LOGICAL_DEVICE_FIELD_NAME = "logical_device";
+static constexpr const char* JSON_VK_CONFIG_LOGICAL_DEVICE_EXTENSIONS_FIELD_NAME = "extensions";
 
 
 struct ParsedVulkanPhysicalDeviceType
@@ -428,18 +429,23 @@ static VulkanInstanceInitInfo ParseVulkanInstanceInitInfoJson(const nlohmann::js
 
 static VulkanPhysDeviceInitInfo ParseVulkanPhysDeviceInitInfoJson(const nlohmann::json& vkPhysDeviceJson) noexcept
 {
-    VulkanPhysDeviceInitInfo deviceInitInfo = {};
+    VulkanPhysDeviceInitInfo physDeviceInitInfo = {};
 
-    const nlohmann::json& deviceTypesJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_REQIUREMENTS_TYPES_FIELD_NAME];
-    deviceInitInfo.types = amjson::ParseArrayJson<std::string>(deviceTypesJson);
+    const nlohmann::json& deviceTypesJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_TYPES_FIELD_NAME];
+    physDeviceInitInfo.types = amjson::ParseArrayJson<std::string>(deviceTypesJson);
 
-    return deviceInitInfo;
+    return physDeviceInitInfo;
 }
 
 
-static VulkanLogicalDeviceInitInfo ParseVulkanLogicalDeviceInitInfoJson(const nlohmann::json& vkPhysDeviceJson) noexcept
+static VulkanLogicalDeviceInitInfo ParseVulkanLogicalDeviceInitInfoJson(const nlohmann::json& vkLogicalDeviceJson) noexcept
 {
-    return {};
+    VulkanLogicalDeviceInitInfo logicalDeviceInitInfo = {};
+
+    const nlohmann::json& logicalDeviceExtensionsJson = vkLogicalDeviceJson[JSON_VK_CONFIG_LOGICAL_DEVICE_EXTENSIONS_FIELD_NAME];
+    logicalDeviceInitInfo.extensionNames = amjson::ParseArrayJson<std::string>(logicalDeviceExtensionsJson);
+
+    return logicalDeviceInitInfo;
 }
 
 
@@ -816,12 +822,12 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo&
     std::multimap<uint64_t, VulkanPhysicalDevice> suitableDevices;
     
     for (VkPhysicalDevice pPhysicalDevice : devices) {
-        VulkanPhysicalDevice desc = GetVulkanPhysicalDeviceInternal(pPhysicalDevice);
+        VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice);
 
-        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(desc, initInfo);
+        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(physDevice, initInfo);
         
         if (devicePriority) {
-            suitableDevices.insert(std::make_pair(devicePriority, desc));
+            suitableDevices.insert(std::make_pair(devicePriority, physDevice));
         }
     }
 
@@ -885,11 +891,25 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
     createInfo.pEnabledFeatures = &physicalDevice.features;
     createInfo.pQueueCreateInfos = deviceQueueInfos.data();
     createInfo.queueCreateInfoCount = deviceQueueInfos.size();
-    // createInfo.enabledExtensionCount = s_pVulkanState->intance.extensions.size();
-    // createInfo.ppEnabledExtensionNames = createInfo.enabledExtensionCount ? s_pVulkanState->intance.extensions.data() : nullptr;
-    // createInfo.enabledLayerCount = s_pVulkanState->intance.validationLayers.size();
-    // createInfo.ppEnabledLayerNames = createInfo.enabledLayerCount ? s_pVulkanState->intance.validationLayers.data() : nullptr;
+    
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    createInfo.enabledLayerCount = s_pVulkanState->intance.validationLayers.size();
+    createInfo.ppEnabledLayerNames = createInfo.enabledLayerCount ? s_pVulkanState->intance.validationLayers.data() : nullptr;
+#endif
 
+    const std::vector<std::string>& logicalDeviceExtensionNames = initInfo.extensionNames;
+    const size_t extensionsCount = logicalDeviceExtensionNames.size();
+
+    if (extensionsCount > 0) {
+        s_pVulkanState->intance.extensions.resize(extensionsCount);
+        
+        CopyStringArrayToCharPtrArray(s_pVulkanState->intance.extensions.data(), logicalDeviceExtensionNames.data(), extensionsCount);
+        
+        createInfo.ppEnabledExtensionNames = s_pVulkanState->intance.extensions.data();
+    }
+
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensionsCount);
+    
     if (vkCreateDevice(s_pVulkanState->physicalDevice.pDevice, &createInfo, nullptr, &s_pVulkanState->logicalDevice.pDevice) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device creation failed");
         return false;
@@ -940,7 +960,7 @@ bool VulkanApplication::InitVulkan() noexcept
     const nlohmann::json& vulkanConfigJson = vulkanConfigOpt.value();
     const nlohmann::json& instanceConfigJson = vulkanConfigJson[JSON_VK_CONFIG_INSTANCE_FIELD_NAME];
     const nlohmann::json& physDeviceConfigJson = vulkanConfigJson[JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME];
-    const nlohmann::json& logicalDeviceConfigJson = vulkanConfigJson[JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME];
+    const nlohmann::json& logicalDeviceConfigJson = vulkanConfigJson[JSON_VK_CONFIG_LOGICAL_DEVICE_FIELD_NAME];
 
     if (!InitVulkanInstance(ParseVulkanInstanceInitInfoJson(instanceConfigJson))) {
         return false;

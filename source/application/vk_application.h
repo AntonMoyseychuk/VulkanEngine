@@ -47,7 +47,7 @@ struct VulkanPhysDeviceInitInfo
 
 struct VulkanLogicalDeviceInitInfo
 {
-    
+    std::vector<std::string> extensionNames;
 };
 
 
