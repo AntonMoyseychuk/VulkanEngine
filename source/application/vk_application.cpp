@@ -235,11 +235,11 @@ static VulkanDebugCallbackInitInfo ParseVulkanCallbackInitInfoJson(const nlohman
     const nlohmann::json& callback = build[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
 
     const nlohmann::json& severity = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME];
-    std::vector<std::string> severityTokens = amjson::ParseArrayJson<std::string>(severity);
+    std::vector<std::string> severityTokens = amjson::ParseJsonArray<std::string>(severity);
     result.messageSeverity = GetVkDebugUtilsMessageSeverityFlagBits(severityTokens);
 
     const nlohmann::json& messageTypes = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
-    std::vector<std::string> messageTypeTokens = amjson::ParseArrayJson<std::string>(messageTypes);
+    std::vector<std::string> messageTypeTokens = amjson::ParseJsonArray<std::string>(messageTypes);
     result.messageType = GetVkDebugUtilsMessageTypeFlags(messageTypeTokens);
 
     return result;
@@ -333,7 +333,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const 
 
     const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
     const nlohmann::json& layers = build[JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME];
-    std::vector<std::string> requestedLayers = amjson::ParseArrayJson<std::string>(layers);
+    std::vector<std::string> requestedLayers = amjson::ParseJsonArray<std::string>(layers);
     
     std::vector<std::string> result;
     result.reserve(requestedLayers.size());
@@ -369,7 +369,7 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkInst
 
     const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
     const nlohmann::json& extensions = build[JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME];
-    std::vector<std::string> requestedExtensions = amjson::ParseArrayJson<std::string>(extensions);
+    std::vector<std::string> requestedExtensions = amjson::ParseJsonArray<std::string>(extensions);
     
     std::vector<std::string> result;
     result.reserve(requestedExtensions.size());
@@ -432,7 +432,7 @@ static VulkanPhysDeviceInitInfo ParseVulkanPhysDeviceInitInfoJson(const nlohmann
     VulkanPhysDeviceInitInfo physDeviceInitInfo = {};
 
     const nlohmann::json& deviceTypesJson = vkPhysDeviceJson[JSON_VK_CONFIG_PHYS_DEVICE_TYPES_FIELD_NAME];
-    physDeviceInitInfo.types = amjson::ParseArrayJson<std::string>(deviceTypesJson);
+    physDeviceInitInfo.types = amjson::ParseJsonArray<std::string>(deviceTypesJson);
 
     return physDeviceInitInfo;
 }
@@ -443,7 +443,7 @@ static VulkanLogicalDeviceInitInfo ParseVulkanLogicalDeviceInitInfoJson(const nl
     VulkanLogicalDeviceInitInfo logicalDeviceInitInfo = {};
 
     const nlohmann::json& logicalDeviceExtensionsJson = vkLogicalDeviceJson[JSON_VK_CONFIG_LOGICAL_DEVICE_EXTENSIONS_FIELD_NAME];
-    logicalDeviceInitInfo.extensionNames = amjson::ParseArrayJson<std::string>(logicalDeviceExtensionsJson);
+    logicalDeviceInitInfo.extensionNames = amjson::ParseJsonArray<std::string>(logicalDeviceExtensionsJson);
 
     return logicalDeviceInitInfo;
 }

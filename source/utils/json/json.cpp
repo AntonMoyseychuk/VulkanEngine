@@ -17,6 +17,11 @@ namespace amjson
             return {};
         }
 
-        return nlohmann::json::parse(jsonFile);
+        try {
+            return nlohmann::json::parse(jsonFile);
+        } catch(const nlohmann::json::parse_error& e) {
+            AM_LOG_WARN("Json parsing error. Error: {}", e.what());
+            return {};
+        }
     }
 }

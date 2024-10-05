@@ -11,7 +11,7 @@ namespace amjson
     std::optional<nlohmann::json> ParseJson(const std::filesystem::path& pathToJson) noexcept;
 
     template <typename T>
-    std::vector<T> ParseArrayJson(const nlohmann::json& json) noexcept;
+    std::vector<T> ParseJsonArray(const nlohmann::json& json) noexcept;
 }
 
 #include "json.hpp"
