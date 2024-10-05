@@ -3,8 +3,10 @@
 #include <string>
 #include <cstdint>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
+
+
+struct GLFWwindow;
 
 
 struct VulkanAppInitInfo
@@ -121,6 +123,12 @@ struct VulkanLogicalDevice
 };
 
 
+struct VulkanSurface
+{
+    VkSurfaceKHR pSurface;
+};
+
+
 class VulkanApplication
 {
 public:
@@ -142,6 +150,9 @@ public:
     void Run() noexcept;
     
 private:
+    static bool CreateGLFWWindow(const VulkanAppInitInfo& initInfo) noexcept;
+    static void TerminateGLFWWindow() noexcept;
+
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     static bool InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo& initInfo) noexcept;
     static void TerminateVulkanDebugCallback() noexcept;
@@ -149,6 +160,9 @@ private:
 
     static bool InitVulkanInstance(const VulkanInstanceInitInfo& initInfo) noexcept;
     static void TerminateVulkanInstance() noexcept;
+    
+    static bool InitVulkanSurface() noexcept;
+    static void TerminateVulkanSurface() noexcept;
 
     static bool InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept;
     static void TerminateVulkanPhysicalDevice() noexcept;
@@ -159,8 +173,10 @@ private:
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
+    static bool IsGLFWWindowCreated() noexcept;
 
     static bool IsVulkanInstanceInitialized() noexcept;
+    static bool IsVulkanSurfaceInitialized() noexcept;
     static bool IsVulkanDebugCallbackInitialized() noexcept;
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
     static bool IsVulkanLogicalDeviceInitialized() noexcept;
@@ -170,20 +186,22 @@ private:
 private:
     VulkanApplication(const VulkanAppInitInfo& appInitInfo);
 
-    bool IsInstanceInitialized() const noexcept;
-    bool IsGlfwWindowCreated() const noexcept;
+    bool IsInstanceInitialized() const noexcept; 
 
 private:
+    static inline GLFWwindow* s_pGLFWWindow = nullptr;
+
     struct VulkanState
     {
         VulkanInstance       intance;
         VulkanPhysicalDevice physicalDevice;
         VulkanLogicalDevice  logicalDevice;
+        VulkanSurface        surface;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 
     static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
 
 private:
-    GLFWwindow* m_glfwWindow = nullptr;
+    
 };

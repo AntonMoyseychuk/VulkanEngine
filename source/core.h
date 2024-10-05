@@ -7,7 +7,11 @@
 #endif
 
 
-#if !defined(AM_GRAPHICS_API_VULKAN)
+#if defined(AM_GRAPHICS_API_VULKAN)
+  #if defined(AM_OS_WINDOWS)
+    #define VK_USE_PLATFORM_WIN32_KHR
+  #endif
+#else
   #error Currently, only Vulkan is supported
 #endif
 

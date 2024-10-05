@@ -1,6 +1,15 @@
 #include "../pch.h"
 #include "vk_application.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#if defined(AM_OS_WINDOWS)
+  #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+
+#include <GLFW/glfw3native.h>
+
 
 static constexpr const char* VULKAN_ENGINE_NAME = "Vulkan Engine";
 
@@ -9,8 +18,6 @@ static constexpr const char* JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME = "build_type"
 
 #if defined(AM_OS_WINDOWS)
     static constexpr const char* JSON_VK_CONFIG_OS_NAME = "win32";
-#else
-    #error Currently, only Windows is supported
 #endif
 
 #if defined(AM_DEBUG)
@@ -630,14 +637,8 @@ bool VulkanApplication::Init() noexcept
 
     const VulkanAppInitInfo& appInitInfo = appInitInfoOpt.value();
 
-#if defined(AM_LOGGING_ENABLED)
-    glfwSetErrorCallback([](int errorCode, const char* description) -> void {
-        AM_LOG_WINDOW_ERROR("{} (code: {})", description, errorCode);
-    });
-#endif
-    
-    if (glfwInit() != GLFW_TRUE) {
-        AM_ASSERT_WINDOW(false, "GLFW initialization failed");
+    if (!CreateGLFWWindow(appInitInfo)) {
+        AM_ASSERT_WINDOW(false, "GLFW window creation failed");
         return false;
     }
 
@@ -647,15 +648,10 @@ bool VulkanApplication::Init() noexcept
     }
 
     s_pAppInst = std::unique_ptr<VulkanApplication>(new VulkanApplication(appInitInfo));
-    if (!s_pAppInst) {
-        AM_ASSERT(false, "VulkanApplication instance allocation failed");
-        Terminate();
-        return false;
-    }
-
-    if (!s_pAppInst->IsInstanceInitialized()) {
+    if (!IsInitialized()) {
         AM_ASSERT(false, "VulkanApplication instance initialization failed");
         Terminate();
+        s_pAppInst = nullptr;
         return false;
     }
 
@@ -668,7 +664,7 @@ void VulkanApplication::Terminate() noexcept
     s_pAppInst = nullptr;
 
     TerminateVulkan();
-    glfwTerminate();
+    TerminateGLFWWindow();
 }
 
 
@@ -680,9 +676,43 @@ bool VulkanApplication::IsInitialized() noexcept
 
 void VulkanApplication::Run() noexcept
 {
-    while(!glfwWindowShouldClose(m_glfwWindow)) {
+    while(!glfwWindowShouldClose(s_pGLFWWindow)) {
         glfwPollEvents();
     }
+}
+
+
+bool VulkanApplication::CreateGLFWWindow(const VulkanAppInitInfo &initInfo) noexcept
+{
+    if (IsGLFWWindowCreated()) {
+        AM_LOG_WARN("GLFW window is already created");
+        return true;
+    }
+
+#if defined(AM_LOGGING_ENABLED)
+    glfwSetErrorCallback([](int errorCode, const char* description) -> void {
+        AM_LOG_WINDOW_ERROR("{} (code: {})", description, errorCode);
+    });
+#endif
+    
+    if (glfwInit() != GLFW_TRUE) {
+        AM_ASSERT_WINDOW(false, "GLFW initialization failed");
+        return false;
+    }
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, initInfo.resizable ? GLFW_TRUE : GLFW_FALSE);
+
+    s_pGLFWWindow = glfwCreateWindow((int)initInfo.width, (int)initInfo.height, initInfo.title.c_str(), nullptr, nullptr);
+
+    return s_pGLFWWindow != nullptr;
+}
+
+
+void VulkanApplication::TerminateGLFWWindow() noexcept
+{
+    glfwDestroyWindow(s_pGLFWWindow);
+    glfwTerminate();
 }
 
 
@@ -794,7 +824,50 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
 }
 
 
-bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept
+bool VulkanApplication::InitVulkanSurface() noexcept
+{
+    if (IsVulkanSurfaceInitialized()) {
+        AM_LOG_WARN("Vulkan surface is already initialized");
+        return true;
+    }
+
+#if defined(AM_OS_WINDOWS)
+    if (!IsGLFWWindowCreated()) {
+        AM_ASSERT(false, "GLFW window is not created. Create it before {}", __FUNCTION__);
+        return false;
+    }
+
+    if (!IsVulkanInstanceInitialized()) {
+        AM_ASSERT(false, "Vulkan Instance is not created. Create it before {}", __FUNCTION__);
+        return false;
+    }
+
+    VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
+    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    surfaceCreateInfo.hwnd = glfwGetWin32Window(s_pGLFWWindow);
+    surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
+
+    if (vkCreateWin32SurfaceKHR(s_pVulkanState->intance.pInstance, &surfaceCreateInfo, nullptr, &s_pVulkanState->surface.pSurface) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan surface creation failed");
+        return false;
+    }
+
+    return true;
+#else
+    return false;
+#endif
+}
+
+
+void VulkanApplication::TerminateVulkanSurface() noexcept
+{
+    if (s_pVulkanState) {
+        vkDestroySurfaceKHR(s_pVulkanState->intance.pInstance, s_pVulkanState->surface.pSurface, nullptr);
+    }
+}
+
+
+bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo &initInfo) noexcept
 {
     if (IsVulkanPhysicalDeviceInitialized()) {
         AM_LOG_WARN("Vulkan physical device is already initialized");
@@ -965,6 +1038,10 @@ bool VulkanApplication::InitVulkan() noexcept
     if (!InitVulkanInstance(ParseVulkanInstanceInitInfoJson(instanceConfigJson))) {
         return false;
     }
+
+    if (!InitVulkanSurface()) {
+        return false;
+    }
     
     if (!InitVulkanPhysicalDevice(ParseVulkanPhysDeviceInitInfoJson(physDeviceConfigJson))) {
         return false;
@@ -982,15 +1059,28 @@ void VulkanApplication::TerminateVulkan() noexcept
 {
     TerminateVulkanLogicalDevice();
     TerminateVulkanPhysicalDevice();
+    TerminateVulkanSurface();
     TerminateVulkanInstance();
 
     s_pVulkanState = nullptr;
 }
 
 
+bool VulkanApplication::IsGLFWWindowCreated() noexcept
+{
+    return s_pGLFWWindow != nullptr;
+}
+
+
 bool VulkanApplication::IsVulkanInstanceInitialized() noexcept
 {
     return s_pVulkanState && s_pVulkanState->intance.pInstance != VK_NULL_HANDLE;
+}
+
+
+bool VulkanApplication::IsVulkanSurfaceInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->surface.pSurface != VK_NULL_HANDLE;
 }
 
 
@@ -1020,8 +1110,9 @@ bool VulkanApplication::IsVulkanLogicalDeviceInitialized() noexcept
 
 bool VulkanApplication::IsVulkanInitialized() noexcept
 {
-    return IsVulkanDebugCallbackInitialized() 
+    return IsVulkanInstanceInitialized() 
         && IsVulkanDebugCallbackInitialized() 
+        && IsVulkanSurfaceInitialized()
         && IsVulkanPhysicalDeviceInitialized()
         && IsVulkanLogicalDeviceInitialized();
 }
@@ -1029,26 +1120,17 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
 
 VulkanApplication::VulkanApplication(const VulkanAppInitInfo &appInitInfo)
 {
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, appInitInfo.resizable ? GLFW_TRUE : GLFW_FALSE);
-
-    m_glfwWindow = glfwCreateWindow((int)appInitInfo.width, (int)appInitInfo.height, appInitInfo.title.c_str(), nullptr, nullptr);
+    
 }
 
 
 bool VulkanApplication::IsInstanceInitialized() const noexcept
 {
-    return IsGlfwWindowCreated();
-}
-
-
-bool VulkanApplication::IsGlfwWindowCreated() const noexcept
-{
-    return m_glfwWindow != nullptr;
+    return true;
 }
 
 
 VulkanApplication::~VulkanApplication()
 {
-    glfwDestroyWindow(m_glfwWindow);
+    
 }
