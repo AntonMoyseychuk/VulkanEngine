@@ -9,7 +9,7 @@
 struct GLFWwindow;
 
 
-struct VulkanAppInitInfo
+struct AppWindowInitInfo
 {
     std::string title = {};
 
@@ -17,6 +17,12 @@ struct VulkanAppInitInfo
     uint32_t height = 0;
     
     bool resizable = false;
+};
+
+
+struct VulkanAppInitInfo
+{
+    AppWindowInitInfo windowInitInfo;
 };
 
 
@@ -150,7 +156,7 @@ public:
     void Run() noexcept;
     
 private:
-    static bool CreateGLFWWindow(const VulkanAppInitInfo& initInfo) noexcept;
+    static bool CreateGLFWWindow(const AppWindowInitInfo& initInfo) noexcept;
     static void TerminateGLFWWindow() noexcept;
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)

@@ -411,10 +411,10 @@ static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::fi
     const nlohmann::json& window = build[JSON_APP_CONFIG_WINDOW_FIELD_NAME];
 
     VulkanAppInitInfo appInitInfo = {};
-    window[JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME].get_to(appInitInfo.title);
-    window[JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME].get_to(appInitInfo.width);
-    window[JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME].get_to(appInitInfo.height);
-    window[JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME].get_to(appInitInfo.resizable);
+    window[JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME].get_to(appInitInfo.windowInitInfo.title);
+    window[JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME].get_to(appInitInfo.windowInitInfo.width);
+    window[JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME].get_to(appInitInfo.windowInitInfo.height);
+    window[JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME].get_to(appInitInfo.windowInitInfo.resizable);
 
     return appInitInfo;
 }
@@ -637,7 +637,7 @@ bool VulkanApplication::Init() noexcept
 
     const VulkanAppInitInfo& appInitInfo = appInitInfoOpt.value();
 
-    if (!CreateGLFWWindow(appInitInfo)) {
+    if (!CreateGLFWWindow(appInitInfo.windowInitInfo)) {
         AM_ASSERT_WINDOW(false, "GLFW window creation failed");
         return false;
     }
@@ -682,7 +682,7 @@ void VulkanApplication::Run() noexcept
 }
 
 
-bool VulkanApplication::CreateGLFWWindow(const VulkanAppInitInfo &initInfo) noexcept
+bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noexcept
 {
     if (IsGLFWWindowCreated()) {
         AM_LOG_WARN("GLFW window is already created");
