@@ -163,7 +163,7 @@ static VkDebugUtilsMessageSeverityFlagBitsEXT GetVkDebugUtilsMessageSeverityFlag
         } else if (severity == JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_VERBOSE) {
             severityBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT;
         } else {
-            AM_ASSERT(false, "Invalid Vulkan callback message severity JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
+            AM_ASSERT(false, "Invalid Vulkan callback message severity JSON tokken {}. Must be one of:\n    - {};\n    - {};\n    - {};\n    - {};\n    - {};", 
                 severity, 
                 JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ALL, 
                 JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_ERROR, 
@@ -209,7 +209,7 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
         } else if (type == JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_PERFORMANCE) {
             typeBits = (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         } else {
-            AM_ASSERT(false, "Invalid Vulkan callback message type JSON tokken {}. Must be one of:\n\t- {};\n\t- {};\n\t- {};\n\t- {};", 
+            AM_ASSERT(false, "Invalid Vulkan callback message type JSON tokken {}. Must be one of:\n    - {};\n    - {};\n    - {};\n    - {};", 
                 type, 
                 JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_ALL, 
                 JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPE_GENERAL, 
@@ -281,46 +281,113 @@ static void CopyStringArrayToCharPtrArray(char** dest, const std::string* src, s
 }
 
 
-AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const VkLayerProperties& layer) noexcept
-{
-    return fmt::format("{} -> {}{}{}", layer.layerName, AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layer.description, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
-}
-
-AM_MAYBE_UNUSED static inline std::string GetVulkanValidationLayerDesc(const std::string& layerDesc) noexcept
-{
-    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layerDesc, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
-}
-
-template<typename ValidationLayerT>
-AM_MAYBE_UNUSED static std::string MakeVulkanValidationLayersListString(const std::vector<ValidationLayerT>& layers) noexcept
+static inline std::string GetVulkanFlagsDesc(const VkSurfaceTransformFlagBitsKHR& transformBits) noexcept
 {
     std::string result = "";
-        
-    for (const ValidationLayerT& layer : layers) {
-        result += fmt::format("{}{}{}", "\t- ", GetVulkanValidationLayerDesc(layer), ";\n");
+
+    if (transformBits & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (transformBits & VK_SURFACE_TRANSFORM_FLAG_BITS_MAX_ENUM_KHR) {
+        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_FLAG_BITS_MAX_ENUM_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+    }
+
+    if (!result.empty()) {
+        result.resize(result.size() - sizeof(" | ") + 1);
     }
 
     return result;
 }
 
 
-static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanObjectDesc(const VkLayerProperties& layer) noexcept
+{
+    return fmt::format("{} -> {}{}{}", layer.layerName, AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layer.description, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
+}
+
+static inline std::string GetVulkanObjectDesc(const VkExtensionProperties& extension) noexcept
 {
     return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension.extensionName, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
+static inline std::string GetVulkanObjectDesc(const VkExtent2D& extent) noexcept
 {
-    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
+    return fmt::format("{}[{}x{}]{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extent.width, extent.height, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-template<typename ExtensionT>
-static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>& extensions) noexcept
+static std::string GetVulkanObjectDesc(const VkSurfaceCapabilitiesKHR& surfaceCapabilities) noexcept
+{
+    const std::string descStr = fmt::format(
+        "    - Current Extent:            {};\n" 
+        "    - Current Transform:         {};\n"
+        "    - Max Image Array layers:    " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+        "    - Max Image Count:           " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+        "    - Max Image Extent:          {};\n"
+        "    - Min Image Count:           " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+        "    - Min Image Extent:          {};\n"
+        "    - Supported Composite Alpha: " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+        "    - Supported Transforms:      " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+        "    - Supported Usage Flags:     " AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n",
+            GetVulkanObjectDesc(surfaceCapabilities.currentExtent),
+            GetVulkanFlagsDesc(surfaceCapabilities.currentTransform),
+            surfaceCapabilities.maxImageArrayLayers,
+            surfaceCapabilities.maxImageCount,
+            GetVulkanObjectDesc(surfaceCapabilities.maxImageExtent),
+            surfaceCapabilities.minImageCount,
+            GetVulkanObjectDesc(surfaceCapabilities.minImageExtent),
+            surfaceCapabilities.supportedCompositeAlpha,
+            surfaceCapabilities.supportedTransforms,
+            surfaceCapabilities.supportedUsageFlags
+        );
+        
+    return descStr;
+}
+
+static inline std::string GetVulkanObjectDesc(const std::string& str) noexcept
+{
+    return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, str, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
+}
+
+template<typename VkObjT>
+static std::string MakeVulkanObjectsListString(const std::vector<VkObjT>& objects) noexcept
 {
     std::string result = "";
         
-    for (const ExtensionT& extension : extensions) {
-        result += fmt::format("{}{}{}", "\t- ", GetVulkanExtensionDesc(extension), ";\n");
+    for (const VkObjT& object : objects) {
+        result += fmt::format("    - {};\n", GetVulkanObjectDesc(object));
     }
 
     return result;
@@ -335,7 +402,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayer
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanValidationLayersListString(availableLayers));
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanObjectsListString(availableLayers));
 
     std::vector<std::string> requestedLayers = amjson::ParseJsonArray<std::string>(vkInstanceValidationLayersJson);
     
@@ -355,7 +422,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayer
     }
 
     result.shrink_to_fit();
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan validation layers:\n{}", MakeVulkanValidationLayersListString(result));
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan validation layers:\n{}", MakeVulkanObjectsListString(result));
 
     return result;
 }
@@ -369,7 +436,7 @@ static std::vector<std::string> GetVulkanInstanceExtensions(const nlohmann::json
     std::vector<VkExtensionProperties> availableVkExtensions(availableVulkanExtCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, availableVkExtensions.data());
 
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanExtensionsListString(availableVkExtensions));
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(availableVkExtensions));
 
     std::vector<std::string> requestedExtensions = amjson::ParseJsonArray<std::string>(vkInstnceExtensionsJson);
     
@@ -389,7 +456,7 @@ static std::vector<std::string> GetVulkanInstanceExtensions(const nlohmann::json
     }
 
     result.shrink_to_fit();
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan instance extensions:\n{}", MakeVulkanExtensionsListString(result));
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(result));
 
     return result;
 }
@@ -403,7 +470,7 @@ static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice&
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice.pDevice, nullptr, &extensionCount, availableExtensions.data());
     
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan logical device extensions:\n{}", MakeVulkanExtensionsListString(availableExtensions));
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan logical device extensions:\n{}", MakeVulkanObjectsListString(availableExtensions));
 
     for (const std::string& requiredExtension : requiredExtensions) {
         bool isLogicalDeviceExtensionSuppoted = false;
@@ -538,9 +605,11 @@ static void PrintPhysicalDeviceProperties(const VkPhysicalDeviceProperties& prop
     const uint32_t driverVersionMinor = VK_API_VERSION_MINOR(props.driverVersion);
     const uint32_t driverVersionPatch = VK_API_VERSION_PATCH(props.driverVersion);
 
-    constexpr const char* format = "Device {} properties:\n" AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, 
-        "  - Name: {};\n  - Type: {};\n  - API Version: {}.{}.{};\n  - Driver Version: {}.{}.{}."
-    );
+    constexpr const char* format = "Device {} properties:\n" 
+        "    - Name:           " AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "{}") ";\n"
+        "    - Type:           " AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "{}") ";\n"
+        "    - API Version:    " AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "{}.{}.{}") ";\n"
+        "    - Driver Version: " AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "{}.{}.{}") ".";
 
     AM_LOG_GRAPHICS_API_INFO(format, deviceID, deviceName, deviceType, apiVersionMajor, apiVersionMinor, apiVersionPatch, driverVersionMajor, driverVersionMinor, driverVersionPatch);
 #endif
@@ -616,21 +685,64 @@ static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPh
 }
 
 
-static uint64_t GetVulkanPhysicalDevicePriority(const VulkanPhysicalDevice& device, const VulkanPhysDeviceInitInfo& requirements) noexcept
+static uint64_t GetVulkanPhysicalDevicePriority(const VulkanPhysicalDevice& device, const std::vector<std::string>& requiredTypes) noexcept
 {
     if (device.pDevice == VK_NULL_HANDLE) {
         AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device.pDevice passed to {}", __FUNCTION__);
         return 0;
     }
 
-    uint64_t priority = GetVulkanDeviceTypePriority(device.properties.deviceType, requirements.types);
+    uint64_t priority = GetVulkanDeviceTypePriority(device.properties.deviceType, requiredTypes);
 
     AM_MAYBE_UNUSED const char* message = priority > 0 ? 
         AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Device '{}' with type '{}' match required types\n") :
         AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_RED_ASCII_CODE, "Device '{}' with type '{}' doesn't matches required types\n");
     AM_LOG_GRAPHICS_API_INFO(message, device.properties.deviceName, ConvertVkPhysicalDeviceTypeToParsedType(device.properties.deviceType)->str);
-
+    
     return priority;
+}
+
+
+static VulkanSwapChainDesc GetVulkanSwapChainDesc(const VulkanPhysicalDevice& device, const VulkanSurface& surface) noexcept
+{
+    if (device.pDevice == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device.pDevice passed to {}", __FUNCTION__);
+        return {};
+    }
+
+    if (surface.pSurface == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE surface.pSurface passed to {}", __FUNCTION__);
+        return {};
+    }
+
+    VulkanSwapChainDesc desc = {};
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.pDevice, surface.pSurface, &desc.capabilities);
+    AM_LOG_GRAPHICS_API_INFO("Vulkan physical device surface capabilities:\n{}", GetVulkanObjectDesc(desc.capabilities));
+
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device.pDevice, surface.pSurface, &formatCount, nullptr);
+
+    if (formatCount == 0) {
+        AM_ASSERT_GRAPHICS_API(false, "There are no any available physical device surface formats");
+        return {};
+    }
+
+    desc.formats.resize(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device.pDevice, surface.pSurface, &formatCount, desc.formats.data());
+
+    uint32_t presentModesCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device.pDevice, surface.pSurface, &presentModesCount, nullptr);
+
+    if (presentModesCount == 0) {
+        AM_ASSERT_GRAPHICS_API(false, "There are no any available physical device surface formats");
+        return {};
+    }
+
+    desc.presentModes.resize(presentModesCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device.pDevice, surface.pSurface, &presentModesCount, desc.presentModes.data());
+
+    return desc;
 }
 
 
@@ -743,7 +855,7 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
     const bool isWindowCreated = s_pGLFWWindow != nullptr;
     
     AM_ASSERT_WINDOW(isWindowCreated, "GLFW window creation failed");
-
+    
     return isWindowCreated;
 }
 
@@ -934,18 +1046,33 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(s_pVulkanState->intance.pInstance, &deviceCount, devices.data());
 
-    AM_LOG_GRAPHICS_API_INFO("Picking suitable physical physicalDevice...");
+    AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
 
     std::multimap<uint64_t, VulkanPhysicalDevice> suitableDevices;
     
     for (VkPhysicalDevice pPhysicalDevice : devices) {
         VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
 
-        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(physDevice, initInfo);
-        
-        if (devicePriority) {
-            suitableDevices.insert(std::make_pair(devicePriority, physDevice));
+        if (!physDevice.queueFamilies.IsComplete()) {
+            AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't have required queue families. Skiped.", physDevice.properties.deviceName);
+            continue;
         }
+
+        const VulkanSwapChainDesc deviceSwapChainDesc = GetVulkanSwapChainDesc(physDevice, s_pVulkanState->surface);
+        
+        if (!deviceSwapChainDesc.IsValid()) {
+            AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't support swap chain with required properties. Skiped.", physDevice.properties.deviceName);
+            continue;
+        }
+
+        const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(physDevice, initInfo.types);
+
+        if (devicePriority == 0) {
+            AM_LOG_GRAPHICS_API_WARN("Physical device '{}' has 0 priority. Skiped.", physDevice.properties.deviceName);
+            continue;
+        }
+
+        suitableDevices.insert(std::make_pair(devicePriority, physDevice));
     }
 
     if (suitableDevices.empty()) {
@@ -953,22 +1080,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
         return false;
     }
 
-    for (auto it = suitableDevices.rbegin(); it != suitableDevices.rend(); ++it) {
-        if (it->second.queueFamilies.IsComplete()) {
-            s_pVulkanState->physicalDevice = std::move(it->second);
-            break;
-        }
-    }
-
-    if (s_pVulkanState->physicalDevice.pDevice == VK_NULL_HANDLE) {
-        AM_ASSERT_GRAPHICS_API(false, "s_pVulkanState->physicalDevice is VK_NULL_HANDLE");
-        return false;
-    }
-
-    if (!s_pVulkanState->physicalDevice.queueFamilies.IsComplete()) {
-        AM_ASSERT_GRAPHICS_API(false, "There are no any Vulkan physical device that support required queue families");
-        return false;
-    }
+    s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second);
 
     return true;
 }
@@ -998,7 +1110,7 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         return false;
     }
 
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan logical device extensions:\n{}", MakeVulkanExtensionsListString(initInfo.extensionNames));
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan logical device extensions:\n{}", MakeVulkanObjectsListString(initInfo.extensionNames));
 
     std::vector<VkDeviceQueueCreateInfo> deviceQueueInfos(queueFamilies.size());
 

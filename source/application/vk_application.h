@@ -144,6 +144,23 @@ struct VulkanSurface
 };
 
 
+struct VulkanSwapChainDesc
+{
+    bool IsValid() const noexcept { return !formats.empty() && !presentModes.empty(); }
+
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+};
+
+
+struct VulkanSwapChain
+{
+    VulkanSwapChainDesc desc;
+    VkSwapchainKHR pSwapChain;
+};
+
+
 class VulkanApplication
 {
 public:
