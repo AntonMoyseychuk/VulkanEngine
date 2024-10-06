@@ -82,11 +82,13 @@ static constexpr const char* JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME = 
 
 
 static constexpr std::array<float, VulkanQueueFamilies::RequiredQueueFamilyType_COUNT> FAMILY_PRIORITIES = { 
-    1.0f
+    1.0f,
+    1.0f,
 };
     
 static constexpr std::array<VkQueueFlagBits, VulkanQueueFamilies::RequiredQueueFamilyType_COUNT> REQUIRED_QUIE_FAMILIES_FLAGS = {
-    VK_QUEUE_GRAPHICS_BIT
+    VK_QUEUE_GRAPHICS_BIT,
+    VkQueueFlagBits{}       // Present family doesn't have flag bits
 };
 
 
@@ -526,14 +528,14 @@ static void PrintPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features
 }
 
 
-static VulkanQueueFamilies FindRequiredVulkanQueueFamilies(VkPhysicalDevice pPhysicalDevice) noexcept
+static VulkanQueueFamilies FindRequiredVulkanQueueFamilies(VkPhysicalDevice pPhysicalDevice, VkSurfaceKHR pSurface) noexcept
 {
     if (pPhysicalDevice == VK_NULL_HANDLE) {
         AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE pPhysicalDevice passed to {}", __FUNCTION__);
         return {};
     }
 
-    VulkanQueueFamilies families = {};
+    VulkanQueueFamilies result = {};
 
     uint32_t familiesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(pPhysicalDevice, &familiesCount, nullptr);
@@ -541,23 +543,31 @@ static VulkanQueueFamilies FindRequiredVulkanQueueFamilies(VkPhysicalDevice pPhy
     std::vector<VkQueueFamilyProperties> queueFamilies(familiesCount);
     vkGetPhysicalDeviceQueueFamilyProperties(pPhysicalDevice, &familiesCount, queueFamilies.data());
 
-    auto& descs = families.descs;
-    for (uint32_t requiredFlagBitsIndex = 0; requiredFlagBitsIndex < descs.size(); ++requiredFlagBitsIndex) {
+    for (uint32_t requiredFamilyIndex = 0; requiredFamilyIndex < result.families.size(); ++requiredFamilyIndex) {
         for (uint32_t familyIndex = 0; familyIndex < queueFamilies.size(); ++familyIndex) {
+            if (requiredFamilyIndex == VulkanQueueFamilies::RequiredQueueFamilyType_PRESENT) {
+                VkBool32 isPresentSupported = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(pPhysicalDevice, familyIndex, pSurface, &isPresentSupported);
+
+                if (isPresentSupported) {
+                    result.families[requiredFamilyIndex].index = familyIndex;
+                }
+            }
+            
             const VkQueueFlags& queueFlags = queueFamilies[familyIndex].queueFlags;
 
-            if (queueFlags & descs[requiredFlagBitsIndex].flags) {
-                descs[requiredFlagBitsIndex].index = familyIndex;
+            if (queueFlags & result.families[requiredFamilyIndex].flags) {
+                result.families[requiredFamilyIndex].index = familyIndex;
                 break;
             }
         }
     }
 
-    return families;
+    return result;
 }
 
 
-static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPhysicalDevice) noexcept
+static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPhysicalDevice, VkSurfaceKHR pSurface) noexcept
 {
     if (pPhysicalDevice == VK_NULL_HANDLE) {
         AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE pPhysicalDevice passed to {}", __FUNCTION__);
@@ -573,7 +583,7 @@ static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPh
     vkGetPhysicalDeviceFeatures(pPhysicalDevice, &device.features);
     PrintPhysicalDeviceFeatures(device.features);
 
-    device.queueFamilies = FindRequiredVulkanQueueFamilies(pPhysicalDevice);
+    device.queueFamilies = FindRequiredVulkanQueueFamilies(pPhysicalDevice, pSurface);
 
     return device;
 }
@@ -598,20 +608,20 @@ static uint64_t GetVulkanPhysicalDevicePriority(const VulkanPhysicalDevice& devi
 
 
 VulkanQueueFamilies::VulkanQueueFamilies()
-    : descs(RequiredQueueFamilyType_COUNT)
+    : families(RequiredQueueFamilyType_COUNT)
 {
     for (size_t i = 0; i < RequiredQueueFamilyType_COUNT; ++i) {
-        descs[i].priority = FAMILY_PRIORITIES[i];
-        descs[i].flags = REQUIRED_QUIE_FAMILIES_FLAGS[i];
+        families[i].priority = FAMILY_PRIORITIES[i];
+        families[i].flags    = REQUIRED_QUIE_FAMILIES_FLAGS[i];
     }
 }
 
 
 bool VulkanQueueFamilies::IsComplete() const noexcept
 {
-    return std::find_if(descs.cbegin(), descs.cend(), [](const auto& desc) {
+    return std::find_if(families.cbegin(), families.cend(), [](const auto& desc) {
         return !desc.index.has_value();
-    }) == descs.cend();
+    }) == families.cend();
 }
 
 
@@ -638,7 +648,6 @@ bool VulkanApplication::Init() noexcept
     const VulkanAppInitInfo& appInitInfo = appInitInfoOpt.value();
 
     if (!CreateGLFWWindow(appInitInfo.windowInitInfo)) {
-        AM_ASSERT_WINDOW(false, "GLFW window creation failed");
         return false;
     }
 
@@ -704,8 +713,11 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
     glfwWindowHint(GLFW_RESIZABLE, initInfo.resizable ? GLFW_TRUE : GLFW_FALSE);
 
     s_pGLFWWindow = glfwCreateWindow((int)initInfo.width, (int)initInfo.height, initInfo.title.c_str(), nullptr, nullptr);
+    const bool isWindowCreated = s_pGLFWWindow != nullptr;
+    
+    AM_ASSERT_WINDOW(isWindowCreated, "GLFW window creation failed");
 
-    return s_pGLFWWindow != nullptr;
+    return isWindowCreated;
 }
 
 
@@ -875,7 +887,12 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     }
 
     if (!IsVulkanInstanceInitialized()) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan instance must be initialized before physical device initialization");
+        AM_ASSERT(false, "Vulkan instance must be initialized before physical device initialization");
+        return false;
+    }
+
+    if (!IsVulkanSurfaceInitialized()) {
+        AM_ASSERT(false, "Vulkan surface must be initialized before physical device initialization");
         return false;
     }
 
@@ -895,7 +912,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     std::multimap<uint64_t, VulkanPhysicalDevice> suitableDevices;
     
     for (VkPhysicalDevice pPhysicalDevice : devices) {
-        VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice);
+        VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
 
         const uint64_t devicePriority = GetVulkanPhysicalDevicePriority(physDevice, initInfo);
         
@@ -917,7 +934,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     }
 
     if (s_pVulkanState->physicalDevice.pDevice == VK_NULL_HANDLE) {
-        AM_ASSERT_GRAPHICS_API(false, "VkPhysicalDevice is VK_NULL_HANDLE");
+        AM_ASSERT_GRAPHICS_API(false, "s_pVulkanState->physicalDevice is VK_NULL_HANDLE");
         return false;
     }
 
@@ -948,7 +965,7 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
     }
 
     const auto& physicalDevice = s_pVulkanState->physicalDevice;
-    const auto& queueFamilies = s_pVulkanState->physicalDevice.queueFamilies.descs;
+    const auto& queueFamilies = s_pVulkanState->physicalDevice.queueFamilies.families;
 
     std::vector<VkDeviceQueueCreateInfo> deviceQueueInfos(queueFamilies.size());
 
@@ -992,10 +1009,10 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
     
     s_pVulkanState->logicalDevice.queues.resize(VulkanQueueFamilies::RequiredQueueFamilyType_COUNT);
     for (uint32_t i = 0; i < VulkanQueueFamilies::RequiredQueueFamilyType_COUNT; ++i) {
-        const uint32_t queueFamilyIndex = s_pVulkanState->physicalDevice.queueFamilies.descs[i].index.value();
+        const uint32_t queueFamilyIndex = s_pVulkanState->physicalDevice.queueFamilies.families[i].index.value();
         VkQueue* ppQueue = &s_pVulkanState->logicalDevice.queues[i];
 
-        vkGetDeviceQueue(pDevice, queueFamilyIndex, i, ppQueue);
+        vkGetDeviceQueue(pDevice, queueFamilyIndex, 0, ppQueue);
 
         if (*ppQueue == VK_NULL_HANDLE) {
             AM_ASSERT_GRAPHICS_API(false, "Failed to get device queue");

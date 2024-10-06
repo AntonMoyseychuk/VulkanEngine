@@ -64,10 +64,11 @@ struct VulkanQueueFamilies
     enum RequiredQueueFamilyType
     {
         RequiredQueueFamilyType_GRAPHICS,
+        RequiredQueueFamilyType_PRESENT,
         RequiredQueueFamilyType_COUNT
     };
 
-    struct Desc
+    struct QueueFamily
     {
         std::optional<uint32_t> index;
         float priority;
@@ -77,7 +78,7 @@ struct VulkanQueueFamilies
     VulkanQueueFamilies();
     bool IsComplete() const noexcept;
 
-    std::vector<Desc> descs;
+    std::vector<QueueFamily> families;
 };
 
 
