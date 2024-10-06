@@ -235,19 +235,16 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
 }
 
 
-static VulkanDebugCallbackInitInfo ParseVulkanCallbackInitInfoJson(const nlohmann::json& vkInstanceJson) noexcept
+static VulkanDebugCallbackInitInfo ParseVulkanCallbackInitInfoJson(const nlohmann::json& vkInstanceCallbackJson) noexcept
 {
     VulkanDebugCallbackInitInfo result = {};
     result.pCallback = VulkanDebugCallback;
 
-    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
-    const nlohmann::json& callback = build[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
-
-    const nlohmann::json& severity = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME];
+    const nlohmann::json& severity = vkInstanceCallbackJson[JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME];
     std::vector<std::string> severityTokens = amjson::ParseJsonArray<std::string>(severity);
     result.messageSeverity = GetVkDebugUtilsMessageSeverityFlagBits(severityTokens);
 
-    const nlohmann::json& messageTypes = callback[JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
+    const nlohmann::json& messageTypes = vkInstanceCallbackJson[JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME];
     std::vector<std::string> messageTypeTokens = amjson::ParseJsonArray<std::string>(messageTypes);
     result.messageType = GetVkDebugUtilsMessageTypeFlags(messageTypeTokens);
 
@@ -307,18 +304,18 @@ AM_MAYBE_UNUSED static std::string MakeVulkanValidationLayersListString(const st
 }
 
 
-AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
+static inline std::string GetVulkanExtensionDesc(const VkExtensionProperties& extension) noexcept
 {
     return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension.extensionName, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-AM_MAYBE_UNUSED static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
+static inline std::string GetVulkanExtensionDesc(const std::string& extension) noexcept
 {
     return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
 template<typename ExtensionT>
-AM_MAYBE_UNUSED static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>& extensions) noexcept
+static std::string MakeVulkanExtensionsListString(const std::vector<ExtensionT>& extensions) noexcept
 {
     std::string result = "";
         
@@ -330,7 +327,7 @@ AM_MAYBE_UNUSED static std::string MakeVulkanExtensionsListString(const std::vec
 }
 
 
-AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const nlohmann::json& vkInstanceJson) noexcept
+AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayers(const nlohmann::json& vkInstanceValidationLayersJson) noexcept
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -340,9 +337,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const 
 
     AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanValidationLayersListString(availableLayers));
 
-    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
-    const nlohmann::json& layers = build[JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME];
-    std::vector<std::string> requestedLayers = amjson::ParseJsonArray<std::string>(layers);
+    std::vector<std::string> requestedLayers = amjson::ParseJsonArray<std::string>(vkInstanceValidationLayersJson);
     
     std::vector<std::string> result;
     result.reserve(requestedLayers.size());
@@ -366,7 +361,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanValidationLayers(const 
 }
 
 
-static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkInstanceJson) noexcept
+static std::vector<std::string> GetVulkanInstanceExtensions(const nlohmann::json& vkInstnceExtensionsJson) noexcept
 {
     uint32_t availableVulkanExtCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, nullptr);
@@ -374,11 +369,9 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkInst
     std::vector<VkExtensionProperties> availableVkExtensions(availableVulkanExtCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, availableVkExtensions.data());
 
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan extensions:\n{}", MakeVulkanExtensionsListString(availableVkExtensions));
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanExtensionsListString(availableVkExtensions));
 
-    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
-    const nlohmann::json& extensions = build[JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME];
-    std::vector<std::string> requestedExtensions = amjson::ParseJsonArray<std::string>(extensions);
+    std::vector<std::string> requestedExtensions = amjson::ParseJsonArray<std::string>(vkInstnceExtensionsJson);
     
     std::vector<std::string> result;
     result.reserve(requestedExtensions.size());
@@ -396,9 +389,39 @@ static std::vector<std::string> GetVulkanExtensions(const nlohmann::json& vkInst
     }
 
     result.shrink_to_fit();
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan extensions:\n{}", MakeVulkanExtensionsListString(result));
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan instance extensions:\n{}", MakeVulkanExtensionsListString(result));
 
     return result;
+}
+
+
+static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice& physicalDevice, const std::vector<std::string>& requiredExtensions) noexcept
+{
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(physicalDevice.pDevice, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice.pDevice, nullptr, &extensionCount, availableExtensions.data());
+    
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan logical device extensions:\n{}", MakeVulkanExtensionsListString(availableExtensions));
+
+    for (const std::string& requiredExtension : requiredExtensions) {
+        bool isLogicalDeviceExtensionSuppoted = false;
+        
+        for (const VkExtensionProperties& availableExtension : availableExtensions) {
+            if (requiredExtension == availableExtension.extensionName) {
+                isLogicalDeviceExtensionSuppoted = true;
+                break;
+            }
+        }
+
+        if (!isLogicalDeviceExtensionSuppoted) {
+            AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device doesn't support required extensions '{}'", requiredExtension.c_str());
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -409,8 +432,7 @@ static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::fi
         return {};
     }
 
-    const nlohmann::json& build = GetVkInstanceOsBuildTypeSpecificJsonObj(jsonOpt.value());
-    const nlohmann::json& window = build[JSON_APP_CONFIG_WINDOW_FIELD_NAME];
+    const nlohmann::json& window = jsonOpt.value()[JSON_APP_CONFIG_WINDOW_FIELD_NAME];
 
     VulkanAppInitInfo appInitInfo = {};
     window[JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME].get_to(appInitInfo.windowInitInfo.title);
@@ -424,12 +446,17 @@ static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::fi
 
 static VulkanInstanceInitInfo ParseVulkanInstanceInitInfoJson(const nlohmann::json& vkInstanceJson) noexcept
 {
+    const nlohmann::json& buildJson         = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
+    const nlohmann::json& extensionsJson    = buildJson[JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME];
+    const nlohmann::json& layersJson        = buildJson[JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME];
+    const nlohmann::json& callbackJson      = buildJson[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
+
     VulkanInstanceInitInfo instInitInfo = {};
-    instInitInfo.extensionNames = GetVulkanExtensions(vkInstanceJson);
-    instInitInfo.validationLayerNames = GetVulkanValidationLayers(vkInstanceJson);
+    instInitInfo.extensionNames = GetVulkanInstanceExtensions(extensionsJson);
+    instInitInfo.validationLayerNames = GetVulkanInstanceValidationLayers(layersJson);
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    instInitInfo.debugCallbackInitInfo = ParseVulkanCallbackInitInfoJson(vkInstanceJson);
+    instInitInfo.debugCallbackInitInfo = ParseVulkanCallbackInitInfoJson(callbackJson);
 #endif
 
     return instInitInfo;
@@ -964,8 +991,14 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         return false;
     }
 
-    const auto& physicalDevice = s_pVulkanState->physicalDevice;
-    const auto& queueFamilies = s_pVulkanState->physicalDevice.queueFamilies.families;
+    const VulkanPhysicalDevice& physicalDevice                          = s_pVulkanState->physicalDevice;
+    const std::vector<VulkanQueueFamilies::QueueFamily>& queueFamilies  = s_pVulkanState->physicalDevice.queueFamilies.families;
+
+    if (!CheckVulkanLogicalDeviceExtensionSupport(physicalDevice, initInfo.extensionNames)) {
+        return false;
+    }
+
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan logical device extensions:\n{}", MakeVulkanExtensionsListString(initInfo.extensionNames));
 
     std::vector<VkDeviceQueueCreateInfo> deviceQueueInfos(queueFamilies.size());
 
@@ -982,20 +1015,20 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
     createInfo.pQueueCreateInfos = deviceQueueInfos.data();
     createInfo.queueCreateInfoCount = deviceQueueInfos.size();
     
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    createInfo.enabledLayerCount = s_pVulkanState->intance.validationLayers.size();
-    createInfo.ppEnabledLayerNames = createInfo.enabledLayerCount ? s_pVulkanState->intance.validationLayers.data() : nullptr;
-#endif
+// #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+//     createInfo.enabledLayerCount = s_pVulkanState->intance.validationLayers.size();
+//     createInfo.ppEnabledLayerNames = createInfo.enabledLayerCount ? s_pVulkanState->intance.validationLayers.data() : nullptr;
+// #endif
 
     const std::vector<std::string>& logicalDeviceExtensionNames = initInfo.extensionNames;
     const size_t extensionsCount = logicalDeviceExtensionNames.size();
 
     if (extensionsCount > 0) {
-        s_pVulkanState->intance.extensions.resize(extensionsCount);
+        s_pVulkanState->logicalDevice.extensions.resize(extensionsCount);
         
-        CopyStringArrayToCharPtrArray(s_pVulkanState->intance.extensions.data(), logicalDeviceExtensionNames.data(), extensionsCount);
+        CopyStringArrayToCharPtrArray(s_pVulkanState->logicalDevice.extensions.data(), logicalDeviceExtensionNames.data(), extensionsCount);
         
-        createInfo.ppEnabledExtensionNames = s_pVulkanState->intance.extensions.data();
+        createInfo.ppEnabledExtensionNames = s_pVulkanState->logicalDevice.extensions.data();
     }
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensionsCount);

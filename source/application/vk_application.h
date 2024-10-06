@@ -124,9 +124,17 @@ struct VulkanPhysicalDevice
 
 struct VulkanLogicalDevice
 {
+    ~VulkanLogicalDevice()
+    {
+        for (const char* extension : extensions) {
+            delete[] extension;
+        }
+    }
+
     VkDevice pDevice;
 
     std::vector<VkQueue> queues;
+    std::vector<char*> extensions;
 };
 
 
