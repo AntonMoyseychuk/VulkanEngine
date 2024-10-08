@@ -148,16 +148,20 @@ struct VulkanSwapChainDesc
 {
     bool IsValid() const noexcept { return !formats.empty() && !presentModes.empty(); }
 
-    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceCapabilitiesKHR        capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
+    std::vector<VkPresentModeKHR>   presentModes;
+
+    VkFormat                        currFormat;
+    VkExtent2D                      currExtent;
 };
 
 
 struct VulkanSwapChain
 {
-    VulkanSwapChainDesc desc;
-    VkSwapchainKHR pSwapChain;
+    VulkanSwapChainDesc  desc;
+    std::vector<VkImage> images;
+    VkSwapchainKHR       pSwapChain;
 };
 
 
@@ -202,6 +206,9 @@ private:
     static bool InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInfo& initInfo) noexcept;
     static void TerminateVulkanLogicalDevice() noexcept;
 
+    static bool InitVulkanSwapChain() noexcept;
+    static void TerminateVulkanSwapChain() noexcept;
+
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
@@ -212,6 +219,7 @@ private:
     static bool IsVulkanDebugCallbackInitialized() noexcept;
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
     static bool IsVulkanLogicalDeviceInitialized() noexcept;
+    static bool IsVulkanSwapChainInitialized() noexcept;
     
     static bool IsVulkanInitialized() noexcept;
 
@@ -229,6 +237,7 @@ private:
         VulkanPhysicalDevice physicalDevice;
         VulkanLogicalDevice  logicalDevice;
         VulkanSurface        surface;
+        VulkanSwapChain      swapChain;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 

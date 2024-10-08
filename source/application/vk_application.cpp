@@ -12,6 +12,7 @@
 
 
 static constexpr const char* VULKAN_ENGINE_NAME = "Vulkan Engine";
+static constexpr const char* APPLICATION_NAME   = "Vulkan Application";
 
 static constexpr const char* JSON_VK_CONFIG_OS_FIELD_NAME = "os";
 static constexpr const char* JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME = "build_type";
@@ -703,7 +704,7 @@ static uint64_t GetVulkanPhysicalDevicePriority(const VulkanPhysicalDevice& devi
 }
 
 
-static VulkanSwapChainDesc GetVulkanSwapChainDesc(const VulkanPhysicalDevice& device, const VulkanSurface& surface) noexcept
+static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysicalDevice& device, const VulkanSurface& surface) noexcept
 {
     if (device.pDevice == VK_NULL_HANDLE) {
         AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device.pDevice passed to {}", __FUNCTION__);
@@ -743,6 +744,46 @@ static VulkanSwapChainDesc GetVulkanSwapChainDesc(const VulkanPhysicalDevice& de
     vkGetPhysicalDeviceSurfacePresentModesKHR(device.pDevice, surface.pSurface, &presentModesCount, desc.presentModes.data());
 
     return desc;
+}
+
+
+const VkSurfaceFormatKHR& PickSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) noexcept
+{
+    // Create configuration file node for this in future
+    for (const VkSurfaceFormatKHR& format : availableFormats) {
+        if (format.format == VK_FORMAT_R8G8B8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return format;
+        }
+    }
+
+    return availableFormats[0];
+}
+
+
+VkPresentModeKHR PickSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) noexcept
+{
+    // Create configuration file node for this in future
+    for (const VkPresentModeKHR& presentMode : availablePresentModes) {
+        if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return presentMode;
+        }
+    }
+
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+
+VkExtent2D PickSwapChainSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t framebufferWidth, uint32_t framebufferHeight) noexcept
+{
+    if (capabilities.currentExtent.width != std::numeric_limits<decltype(capabilities.currentExtent.width)>::max()) {
+        return capabilities.currentExtent;
+    }
+
+    VkExtent2D actualExtent = {};
+    actualExtent.width = std::clamp(framebufferWidth, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    actualExtent.height = std::clamp(framebufferWidth, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    
+    return actualExtent; 
 }
 
 
@@ -904,7 +945,7 @@ bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInf
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Default Vulkan Application";
+    appInfo.pApplicationName = APPLICATION_NAME;
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = VULKAN_ENGINE_NAME;
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -1048,19 +1089,30 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
 
     AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
 
-    std::multimap<uint64_t, VulkanPhysicalDevice> suitableDevices;
+    struct SuitablePhysicalDevice
+    {
+        VulkanPhysicalDevice physicalDevice;
+        VulkanSwapChainDesc  swapChainDesc;
+    };
+
+    std::multimap<uint64_t, SuitablePhysicalDevice> suitableDevices;
     
     for (VkPhysicalDevice pPhysicalDevice : devices) {
-        VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
+        SuitablePhysicalDevice device = {};
+
+        VulkanPhysicalDevice& physDevice = device.physicalDevice;
+        VulkanSwapChainDesc& swapChainDesc = device.swapChainDesc;
+
+        physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
 
         if (!physDevice.queueFamilies.IsComplete()) {
             AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't have required queue families. Skiped.", physDevice.properties.deviceName);
             continue;
         }
 
-        const VulkanSwapChainDesc deviceSwapChainDesc = GetVulkanSwapChainDesc(physDevice, s_pVulkanState->surface);
+        swapChainDesc = GetVulkanSwapChainDeviceSurfaceDesc(physDevice, s_pVulkanState->surface);
         
-        if (!deviceSwapChainDesc.IsValid()) {
+        if (!swapChainDesc.IsValid()) {
             AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't support swap chain with required properties. Skiped.", physDevice.properties.deviceName);
             continue;
         }
@@ -1072,7 +1124,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
             continue;
         }
 
-        suitableDevices.insert(std::make_pair(devicePriority, physDevice));
+        suitableDevices.insert(std::make_pair(devicePriority, device));
     }
 
     if (suitableDevices.empty()) {
@@ -1080,7 +1132,8 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
         return false;
     }
 
-    s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second);
+    s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
+    s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
     return true;
 }
@@ -1177,6 +1230,115 @@ void VulkanApplication::TerminateVulkanLogicalDevice() noexcept
 }
 
 
+bool VulkanApplication::InitVulkanSwapChain() noexcept
+{
+    if (IsVulkanSwapChainInitialized()) {
+        AM_LOG_WARN("Vulkan swap chain is already initialized");
+        return true;
+    }
+
+    if (!IsGLFWWindowCreated()) {
+        AM_ASSERT(false, "Window must be initialized before Vulkan swap chain initialization");
+        return false;
+    }
+
+    if (!IsVulkanPhysicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan phisical device must be initialized before swap chain initialization");
+        return false;
+    }
+
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan logical device must be initialized before swap chain initialization");
+        return false;
+    }
+
+    if (!IsVulkanSurfaceInitialized()) {
+        AM_ASSERT(false, "Vulkan surface must be initialized before swap chain initialization");
+        return false;
+    }
+
+    VulkanSwapChainDesc& swapChainDesc = s_pVulkanState->swapChain.desc;
+
+    if (!swapChainDesc.IsValid()) {
+        AM_ASSERT(false, "Vulkan swap chain description is invalid");
+        return false;
+    }
+
+    const VkPresentModeKHR presentMode = PickSwapChainPresentMode(swapChainDesc.presentModes);
+    const VkSurfaceFormatKHR& surfaceFormat = PickSwapChainSurfaceFormat(swapChainDesc.formats);
+
+    int framebufferWidth = 0, framebufferHeight = 0;
+    glfwGetFramebufferSize(s_pGLFWWindow, &framebufferWidth, &framebufferHeight);
+    const VkExtent2D extent = PickSwapChainSurfaceExtent(swapChainDesc.capabilities, (uint32_t)framebufferWidth, (uint32_t)framebufferHeight);
+
+    uint32_t imageCount = swapChainDesc.capabilities.minImageCount + 1;
+
+    if (swapChainDesc.capabilities.maxImageCount > 0 && imageCount > swapChainDesc.capabilities.maxImageCount) {
+        imageCount = swapChainDesc.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = s_pVulkanState->surface.pSurface;
+    createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = extent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    const std::vector<VulkanQueueFamilies::QueueFamily>& queueFamilies = s_pVulkanState->physicalDevice.queueFamilies.families;
+    
+    std::vector<uint32_t> familyIndices(queueFamilies.size());
+    for (size_t i = 0; i < familyIndices.size(); ++i) {
+        familyIndices[i] = queueFamilies[i].index.value();
+    }
+
+    if (familyIndices[VulkanQueueFamilies::RequiredQueueFamilyType_GRAPHICS] != familyIndices[VulkanQueueFamilies::RequiredQueueFamilyType_PRESENT]) {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = familyIndices.data();
+    } else {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = nullptr;
+    }
+
+    createInfo.preTransform = swapChainDesc.capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &s_pVulkanState->swapChain.pSwapChain) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan swap chain creation failed");
+        return false;
+    }
+
+    uint32_t finalImageCount = 0;
+    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, &finalImageCount, nullptr);
+    
+    std::vector<VkImage>& swapChainImages = s_pVulkanState->swapChain.images;
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, &imageCount, swapChainImages.data());
+
+    swapChainDesc.currExtent = extent;
+    swapChainDesc.currFormat = surfaceFormat.format;
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanSwapChain() noexcept
+{
+    if (s_pVulkanState) {
+        vkDestroySwapchainKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, nullptr);
+    }
+}
+
+
 bool VulkanApplication::InitVulkan() noexcept
 {
     if (IsVulkanInitialized()) {
@@ -1213,12 +1375,17 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
+    if (!InitVulkanSwapChain()) {
+        return false;
+    }
+
     return true;
 }
 
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+    TerminateVulkanSwapChain();
     TerminateVulkanLogicalDevice();
     TerminateVulkanPhysicalDevice();
     TerminateVulkanSurface();
@@ -1270,13 +1437,20 @@ bool VulkanApplication::IsVulkanLogicalDeviceInitialized() noexcept
 }
 
 
+bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->swapChain.pSwapChain != VK_NULL_HANDLE;
+}
+
+
 bool VulkanApplication::IsVulkanInitialized() noexcept
 {
     return IsVulkanInstanceInitialized() 
         && IsVulkanDebugCallbackInitialized() 
         && IsVulkanSurfaceInitialized()
         && IsVulkanPhysicalDeviceInitialized()
-        && IsVulkanLogicalDeviceInitialized();
+        && IsVulkanLogicalDeviceInitialized()
+        && IsVulkanSwapChainInitialized();
 }
 
 
