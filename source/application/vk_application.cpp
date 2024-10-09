@@ -339,17 +339,17 @@ AM_MAYBE_UNUSED static inline std::string GetVulkanObjectDesc(const VkLayerPrope
     return fmt::format("{} -> {}{}{}", layer.layerName, AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, layer.description, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-static inline std::string GetVulkanObjectDesc(const VkExtensionProperties& extension) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanObjectDesc(const VkExtensionProperties& extension) noexcept
 {
     return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extension.extensionName, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-static inline std::string GetVulkanObjectDesc(const VkExtent2D& extent) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanObjectDesc(const VkExtent2D& extent) noexcept
 {
     return fmt::format("{}[{}x{}]{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, extent.width, extent.height, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
 
-static std::string GetVulkanObjectDesc(const VkSurfaceCapabilitiesKHR& surfaceCapabilities) noexcept
+AM_MAYBE_UNUSED static std::string GetVulkanObjectDesc(const VkSurfaceCapabilitiesKHR& surfaceCapabilities) noexcept
 {
     const std::string descStr = fmt::format(
         "    - Current Extent:            {};\n" 
@@ -377,7 +377,7 @@ static std::string GetVulkanObjectDesc(const VkSurfaceCapabilitiesKHR& surfaceCa
     return descStr;
 }
 
-static inline std::string GetVulkanObjectDesc(const std::string& str) noexcept
+AM_MAYBE_UNUSED static inline std::string GetVulkanObjectDesc(const std::string& str) noexcept
 {
     return fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, str, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
 }
@@ -517,13 +517,14 @@ static VulkanInstanceInitInfo ParseVulkanInstanceInitInfoJson(const nlohmann::js
     const nlohmann::json& buildJson         = GetVkInstanceOsBuildTypeSpecificJsonObj(vkInstanceJson);
     const nlohmann::json& extensionsJson    = buildJson[JSON_VK_CONFIG_INSTANCE_EXTENSIONS_FIELD_NAME];
     const nlohmann::json& layersJson        = buildJson[JSON_VK_CONFIG_INSTANCE_VALIDATION_LAYERS_FIELD_NAME];
-    const nlohmann::json& callbackJson      = buildJson[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
 
     VulkanInstanceInitInfo instInitInfo = {};
     instInitInfo.extensionNames = GetVulkanInstanceExtensions(extensionsJson);
     instInitInfo.validationLayerNames = GetVulkanInstanceValidationLayers(layersJson);
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    const nlohmann::json& callbackJson = buildJson[JSON_VK_CONFIG_INSTANCE_CALLBACK_FIELD_NAME];
+    
     instInitInfo.debugCallbackInitInfo = ParseVulkanCallbackInitInfoJson(callbackJson);
 #endif
 
@@ -1000,7 +1001,7 @@ bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInf
     }
 #endif
 
-    return true;
+    return IsVulkanInstanceInitialized();
 }
 
 
@@ -1044,7 +1045,7 @@ bool VulkanApplication::InitVulkanSurface() noexcept
         return false;
     }
 
-    return true;
+    return IsVulkanSurfaceInitialized();
 #else
     return false;
 #endif
@@ -1135,7 +1136,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
     s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
-    return true;
+    return IsVulkanPhysicalDeviceInitialized();
 }
 
 
@@ -1218,7 +1219,7 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         }
     }
 
-    return true;
+    return IsVulkanLogicalDeviceInitialized();
 }
 
 
@@ -1327,13 +1328,42 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     swapChainDesc.currExtent = extent;
     swapChainDesc.currFormat = surfaceFormat.format;
 
-    return true;
+    std::vector<VkImageView>& swapChainImageViews = s_pVulkanState->swapChain.swapChainImageViews;
+    swapChainImageViews.resize(swapChainImages.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); ++i) {
+        VkImageViewCreateInfo createInfo = {};
+        createInfo.sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image        = swapChainImages[i];
+        createInfo.viewType     = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format       = s_pVulkanState->swapChain.desc.currFormat;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel    = 0;
+        createInfo.subresourceRange.levelCount      = 1;
+        createInfo.subresourceRange.baseArrayLayer  = 0;
+        createInfo.subresourceRange.layerCount      = 1;
+
+        if (vkCreateImageView(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
+            AM_ASSERT_GRAPHICS_API(false, "Vulkan image view {} creation failed", i);
+            return false;
+        }
+    }
+
+    return IsVulkanSwapChainInitialized();
 }
 
 
 void VulkanApplication::TerminateVulkanSwapChain() noexcept
 {
     if (s_pVulkanState) {
+        for (VkImageView& imageView : s_pVulkanState->swapChain.swapChainImageViews) {
+            vkDestroyImageView(s_pVulkanState->logicalDevice.pDevice, imageView, nullptr);
+        }
+
         vkDestroySwapchainKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, nullptr);
     }
 }
@@ -1379,7 +1409,7 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
-    return true;
+    return IsVulkanInitialized();
 }
 
 
@@ -1439,7 +1469,27 @@ bool VulkanApplication::IsVulkanLogicalDeviceInitialized() noexcept
 
 bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->swapChain.pSwapChain != VK_NULL_HANDLE;
+    if (!s_pVulkanState) {
+        return false;
+    }
+
+    const VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
+
+    if (swapChain.pSwapChain == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    if (swapChain.swapChainImageViews.size() != swapChain.images.size() || swapChain.swapChainImageViews.empty()) {
+        return false;
+    }
+
+    for (const VkImageView& imageView : swapChain.swapChainImageViews) {
+        if (imageView == VK_NULL_HANDLE) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 

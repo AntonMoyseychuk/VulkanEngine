@@ -159,9 +159,10 @@ struct VulkanSwapChainDesc
 
 struct VulkanSwapChain
 {
-    VulkanSwapChainDesc  desc;
-    std::vector<VkImage> images;
-    VkSwapchainKHR       pSwapChain;
+    VulkanSwapChainDesc      desc;
+    std::vector<VkImage>     images;
+    std::vector<VkImageView> swapChainImageViews;
+    VkSwapchainKHR           pSwapChain;
 };
 
 
