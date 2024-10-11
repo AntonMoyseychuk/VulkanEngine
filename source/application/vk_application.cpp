@@ -149,7 +149,7 @@ static VkDebugUtilsMessageSeverityFlagBitsEXT GetVkDebugUtilsMessageSeverityFlag
                 (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                 (uint32_t)VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 
-    static const auto ConvertStrToSeverityBits = [](const std::string& severity) -> uint32_t
+    static const auto ConvertStrToSeverityBits = [SEVERITY_ALL](const std::string& severity) -> uint32_t
     {
         uint32_t severityBits = 0;
 
@@ -197,7 +197,7 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
         (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | 
         (uint32_t)VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 
-    static const auto ConvertStrToTypeBits = [](const std::string& type) -> uint32_t
+    static const auto ConvertStrToTypeBits = [TYPE_ALL](const std::string& type) -> uint32_t
     {
         uint32_t typeBits = 0;
 
@@ -1001,7 +1001,7 @@ bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInf
     }
 #endif
 
-    return IsVulkanInstanceInitialized();
+    return true;
 }
 
 
@@ -1045,7 +1045,7 @@ bool VulkanApplication::InitVulkanSurface() noexcept
         return false;
     }
 
-    return IsVulkanSurfaceInitialized();
+    return true;
 #else
     return false;
 #endif
@@ -1136,7 +1136,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
     s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
-    return IsVulkanPhysicalDeviceInitialized();
+    return true;
 }
 
 
@@ -1219,7 +1219,7 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         }
     }
 
-    return IsVulkanLogicalDeviceInitialized();
+    return true;
 }
 
 
@@ -1353,7 +1353,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
         }
     }
 
-    return IsVulkanSwapChainInitialized();
+    return true;
 }
 
 
@@ -1365,6 +1365,25 @@ void VulkanApplication::TerminateVulkanSwapChain() noexcept
         }
 
         vkDestroySwapchainKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, nullptr);
+    }
+}
+
+
+bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
+{
+    if (IsVulkanGraphicsPipelineInitialized()) {
+        AM_LOG_WARN("Vulkan graphics pipeline is already initialized");
+        return true;
+    }
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
+{
+    if (s_pVulkanState) {
+
     }
 }
 
@@ -1409,12 +1428,17 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
-    return IsVulkanInitialized();
+    if (!InitVulkanGraphicsPipeline()) {
+        return false;
+    }
+
+    return true;
 }
 
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+    TerminateVulkanGraphicsPipeline();
     TerminateVulkanSwapChain();
     TerminateVulkanLogicalDevice();
     TerminateVulkanPhysicalDevice();
@@ -1492,6 +1516,11 @@ bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
     return true;
 }
 
+bool VulkanApplication::IsVulkanGraphicsPipelineInitialized() noexcept
+{
+    return false;
+}
+
 
 bool VulkanApplication::IsVulkanInitialized() noexcept
 {
@@ -1500,7 +1529,8 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
         && IsVulkanSurfaceInitialized()
         && IsVulkanPhysicalDeviceInitialized()
         && IsVulkanLogicalDeviceInitialized()
-        && IsVulkanSwapChainInitialized();
+        && IsVulkanSwapChainInitialized()
+        && IsVulkanGraphicsPipelineInitialized();
 }
 
 

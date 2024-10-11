@@ -210,6 +210,9 @@ private:
     static bool InitVulkanSwapChain() noexcept;
     static void TerminateVulkanSwapChain() noexcept;
 
+    static bool InitVulkanGraphicsPipeline() noexcept;
+    static void TerminateVulkanGraphicsPipeline() noexcept;
+
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
@@ -221,6 +224,7 @@ private:
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
     static bool IsVulkanLogicalDeviceInitialized() noexcept;
     static bool IsVulkanSwapChainInitialized() noexcept;
+    static bool IsVulkanGraphicsPipelineInitialized() noexcept;
     
     static bool IsVulkanInitialized() noexcept;
 
