@@ -3,10 +3,16 @@
 #include <string>
 #include <cstdint>
 
-#include <vulkan/vulkan.h>
+#include "core.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
-struct GLFWwindow;
+#if defined(AM_OS_WINDOWS)
+  #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+
+#include <GLFW/glfw3native.h>
 
 
 struct AppWindowInitInfo

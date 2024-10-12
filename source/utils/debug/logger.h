@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../../core.h"
+#include "core.h"
+
+#include "utils/file/file.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -70,7 +72,7 @@ private:
         std::vector<LoggerInfo> infos;
     };
 
-    static LoggerSystemInitInfo ParseLoggerSysInitInfoJson(const std::filesystem::path& pathToJson) noexcept;
+    static LoggerSystemInitInfo ParseLoggerSysInitInfoJson(const fs::path& pathToJson) noexcept;
     
     static std::shared_ptr<spdlog::logger> CreateDefaultSpdlogger() noexcept;
 

@@ -1,6 +1,9 @@
-#include "../../pch.h"
+#include "pch.h"
 
 #include "logger.h"
+
+#include "config.h"
+#include "utils/json/json.h"
 
 
 static constexpr const char* JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME = "loggers";
@@ -8,7 +11,7 @@ static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME = "name";
 static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME = "pattern";
 
 
-Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const std::filesystem::path &pathToJson) noexcept
+Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const fs::path &pathToJson) noexcept
 {
     std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
     if (!jsonOpt.has_value()) {

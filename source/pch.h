@@ -32,8 +32,3 @@
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
-
-#include "core.h"
-#include "config.h"
-#include "utils/debug/assertion.h"
-#include "utils/json/json.h"

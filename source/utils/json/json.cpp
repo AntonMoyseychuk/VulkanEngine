@@ -1,12 +1,15 @@
-#include "../../pch.h"
+#include "pch.h"
 
 #include "json.h"
 
+#include "utils/debug/assertion.h"
+
+
 namespace amjson
 {
-    std::optional<nlohmann::json> ParseJson(const std::filesystem::path& pathToJson) noexcept
+    std::optional<nlohmann::json> ParseJson(const fs::path& pathToJson) noexcept
     {
-        if (!std::filesystem::exists(pathToJson)) {
+        if (!fs::exists(pathToJson)) {
             AM_LOG_WARN("Json parsing error. File {} doesn't exist.", pathToJson.string());
             return {};
         }

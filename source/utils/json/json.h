@@ -5,10 +5,12 @@
 #include <optional>
 #include <vector>
 
+#include "utils/file/file.h"
+
 
 namespace amjson
 {
-    std::optional<nlohmann::json> ParseJson(const std::filesystem::path& pathToJson) noexcept;
+    std::optional<nlohmann::json> ParseJson(const fs::path& pathToJson) noexcept;
 
     template <typename T>
     std::vector<T> ParseJsonArray(const nlohmann::json& json) noexcept;

@@ -1,14 +1,12 @@
-#include "../pch.h"
+#include "pch.h"
 #include "vk_application.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "config.h"
+#include "utils/debug/assertion.h"
+#include "utils/json/json.h"
+#include "utils/file/file.h"
 
-#if defined(AM_OS_WINDOWS)
-  #define GLFW_EXPOSE_NATIVE_WIN32
-#endif
-
-#include <GLFW/glfw3native.h>
+#include "shader_system/shader_system.h"
 
 
 static constexpr const char* VULKAN_ENGINE_NAME = "Vulkan Engine";
@@ -493,7 +491,7 @@ static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice&
 }
 
 
-static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const std::filesystem::path& pathToJson) noexcept
+static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const fs::path& pathToJson) noexcept
 {
     std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
     if (!jsonOpt.has_value()) {
@@ -845,6 +843,8 @@ bool VulkanApplication::Init() noexcept
         return false;
     }
 
+    glfwShowWindow(s_pGLFWWindow);
+
     return true;
 }
 
@@ -891,10 +891,13 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, initInfo.resizable ? GLFW_TRUE : GLFW_FALSE);
 
     s_pGLFWWindow = glfwCreateWindow((int)initInfo.width, (int)initInfo.height, initInfo.title.c_str(), nullptr, nullptr);
     const bool isWindowCreated = s_pGLFWWindow != nullptr;
+
+    glfwHideWindow(s_pGLFWWindow);
     
     AM_ASSERT_WINDOW(isWindowCreated, "GLFW window creation failed");
     
@@ -1376,6 +1379,13 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
         return true;
     }
 
+    if (!VulkanShaderSystem::IsInitialized()) {
+        AM_ASSERT(false, "VulkanShaderSystem must be initialized before graphics pipeline initialization");
+        return false;
+    }
+
+
+
     return true;
 }
 
@@ -1424,6 +1434,10 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
+    if (!VulkanShaderSystem::Init(s_pVulkanState->logicalDevice.pDevice)) {
+        return false;
+    }
+
     if (!InitVulkanSwapChain()) {
         return false;
     }
@@ -1440,6 +1454,7 @@ void VulkanApplication::TerminateVulkan() noexcept
 {
     TerminateVulkanGraphicsPipeline();
     TerminateVulkanSwapChain();
+    VulkanShaderSystem::Terminate();
     TerminateVulkanLogicalDevice();
     TerminateVulkanPhysicalDevice();
     TerminateVulkanSurface();

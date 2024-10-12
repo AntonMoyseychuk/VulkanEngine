@@ -1,6 +1,6 @@
-#include "pch.h"
-
 #include "application/vk_application.h"
+
+#include "utils/debug/assertion.h"
 
 
 int main(int argc, char* argv[])
