@@ -119,8 +119,10 @@ VulkanShaderSystem::VulkanShaderSystem()
 VulkanShaderSystem::~VulkanShaderSystem()
 {
     if (IsVulkanLogicalDeviceValid()) {
-        for (VulkanShaderModule& module : m_shaderModules) {
-            vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
+        for (VulkanShaderModuleGroup& group : m_shaderModuleGroups) {
+            for (VulkanShaderModule& module : group.modules) {
+                vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
+            }
         }
     }
 }
@@ -186,14 +188,9 @@ VulkanShaderModule VulkanShaderSystem::CreateVulkanShaderModule(const fs::direct
 }
 
 
-void VulkanShaderSystem::AddVulkanShaderModule(const VulkanShaderModule& shaderModule) noexcept
+void VulkanShaderSystem::AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept
 {
-    if (shaderModule.pModule == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("Passed VK_NULL_HANDLE pModule to {}. Skiped", __FUNCTION__);
-        return;
-    }
-
-    m_shaderModules.emplace_back(shaderModule);
+    m_shaderModuleGroups.emplace_back(group);
 }
 
 
@@ -317,10 +314,21 @@ void VulkanShaderSystem::CompileShaders() noexcept
 {
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Compiling shaders..."));
 
-    ForEachFileInDirectory(paths::AM_PROJECT_SHADERS_DIR_PATH, [this](const fs::directory_entry& shaderFileEntry)
+    m_shaderModuleGroups.clear();
+
+    ForEachDirectory(paths::AM_PROJECT_SHADERS_DIR_PATH, [this](const fs::directory_entry& dirEntry)
     {
-        VulkanShaderModule module = CreateVulkanShaderModule(shaderFileEntry);
-        AddVulkanShaderModule(module);
+        VulkanShaderModuleGroup moduleGroup;
+
+        ForEachFileInSubDirectories(dirEntry.path(), [this, &moduleGroup](const fs::directory_entry& fileEntry)
+        {
+            VulkanShaderModule shaderModule = CreateVulkanShaderModule(fileEntry);
+            if (shaderModule.IsVaild()) {
+                moduleGroup.modules[shaderModule.kind] = shaderModule;
+            }
+        });
+
+        AddVulkanShaderModuleGroup(moduleGroup);
     });
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Shaders compilation finished"));

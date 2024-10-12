@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/debug/assertion.h"
+
 #include <vulkan/vulkan.h>
 #include <shaderc/shaderc.hpp>
 
@@ -7,9 +9,8 @@
 #include <memory>
 
 
-enum VulkanShaderKind
+enum VulkanShaderKind : uint32_t
 {
-    VulkanShaderKind_INVALID,
     VulkanShaderKind_VERTEX,
     VulkanShaderKind_PIXEL,
     VulkanShaderKind_COUNT,
@@ -18,8 +19,33 @@ enum VulkanShaderKind
 
 struct VulkanShaderModule
 {
+    bool IsVaild() const noexcept { return kind < VulkanShaderKind_COUNT && pModule != VK_NULL_HANDLE; }
+
     VkShaderModule pModule;
     VulkanShaderKind kind;
+};
+
+
+struct VulkanShaderModuleGroup
+{
+    bool AreModulesVaild() const noexcept 
+    {
+        for (const VulkanShaderModule& module : modules) {
+            if (!module.IsVaild()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool IsModuleValid(VulkanShaderKind kind) const noexcept 
+    {
+        AM_ASSERT(kind < VulkanShaderKind_COUNT, "Invalid module kind");
+        return modules[kind].IsVaild();
+    }
+
+    std::array<VulkanShaderModule, VulkanShaderKind_COUNT> modules;
 };
 
 
@@ -28,6 +54,8 @@ struct VulkanShaderIntermediateData;
 
 class VulkanShaderSystem
 {
+    friend class VulkanApplication;
+    
 public:
     static VulkanShaderSystem& Instance() noexcept;
     
@@ -45,7 +73,7 @@ public:
     ~VulkanShaderSystem();
 
     VulkanShaderModule CreateVulkanShaderModule(const std::filesystem::directory_entry& shaderFileEntry) noexcept;
-    void AddVulkanShaderModule(const VulkanShaderModule& shaderModule) noexcept;
+    void AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept;
 
     void RecompileShaders() noexcept;
 
@@ -71,5 +99,5 @@ private:
 private:
     shaderc::Compiler m_compiler;
 
-    std::vector<VulkanShaderModule> m_shaderModules;
+    std::vector<VulkanShaderModuleGroup> m_shaderModuleGroups;
 };

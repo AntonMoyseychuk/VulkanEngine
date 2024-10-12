@@ -9,7 +9,10 @@ namespace fs = std::filesystem;
 std::optional<std::vector<char>> ReadFile(const fs::path& filepath) noexcept;
 
 template <typename Func, typename... Args>
-void ForEachFileInDirectory(const fs::path& dir, const Func& func, Args&&... args) noexcept;
+void ForEachSubDirectory(const fs::path& root, const Func& func, Args&&... args) noexcept;
+
+template <typename Func, typename... Args>
+void ForEachFileInSubDirectories(const fs::path& rootDir, const Func& func, Args&&... args) noexcept;
 
 
 #include "file.hpp"
