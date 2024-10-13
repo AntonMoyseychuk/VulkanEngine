@@ -17,6 +17,21 @@ enum VulkanShaderKind : uint32_t
 };
 
 
+
+struct VulkanShaderGroupConfigInfo
+{
+    std::vector<std::string> defines;
+};
+
+
+struct VulkanShaderModuleIntermediateDataConfigInfo
+{
+    const VulkanShaderGroupConfigInfo* pGroupConfigInfo;
+    const fs::path* pFilepath;
+    VulkanShaderKind kind;
+};
+
+
 struct VulkanShaderModule
 {
     bool IsVaild() const noexcept { return kind < VulkanShaderKind_COUNT && pModule != VK_NULL_HANDLE; }
@@ -72,7 +87,7 @@ public:
 
     ~VulkanShaderSystem();
 
-    VulkanShaderModule CreateVulkanShaderModule(const std::filesystem::directory_entry& shaderFileEntry) noexcept;
+    VulkanShaderModule CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept;
     void AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept;
 
     void RecompileShaders() noexcept;

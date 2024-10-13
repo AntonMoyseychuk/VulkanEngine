@@ -4,17 +4,15 @@
 #include "config.h"
 #include "utils/debug/assertion.h"
 #include "utils/file/file.h"
+#include "utils/json/json.h"
 
 
-static const fs::path AM_VERTEX_SHADER_EXTENSION = ".vs";
-static const fs::path AM_PIXEL_SHADER_EXTENSION = ".ps";
+static const fs::path AM_VERTEX_SHADER_EXTENSIONS[] = { ".vs", ".vsh", ".vert", ".glsl" };
+static const fs::path AM_PIXEL_SHADER_EXTENSIONS[] = { ".ps", ".fs", ".psh", ".frag", ".glsl" };
 static const fs::path AM_SHADER_CONFIG_EXTENSION = ".json";
 
 
-struct VulkanShaderConfigInfo
-{
-    
-};
+static constexpr const char* JSON_SHADER_CONFIG_DEFINES_FIELD_NAME = "defines";
 
 
 struct VulkanShaderIntermediateData
@@ -29,18 +27,82 @@ struct VulkanShaderIntermediateData
 };
 
 
-static VulkanShaderConfigInfo GetVulkanShaderConfigInfo(const fs::path& pathToConfigJson) noexcept
+static bool IsVertexShaderFileCorrectExtension(const fs::path& extension) noexcept
 {
-    VulkanShaderConfigInfo info = {};
+    for (const fs::path& ext : AM_VERTEX_SHADER_EXTENSIONS) {
+        if (ext == extension) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+static bool IsPixelShaderFileCorrectExtension(const fs::path& extension) noexcept
+{
+    for (const fs::path& ext : AM_PIXEL_SHADER_EXTENSIONS) {
+        if (ext == extension) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+static bool IsShaderGroupConfigFile(const fs::path& filepath) noexcept
+{
+    return filepath.extension() == AM_SHADER_CONFIG_EXTENSION;
+}
+
+
+static std::optional<VulkanShaderGroupConfigInfo> GetVulkanShaderGroupConfigInfo(const fs::path& pathToConfigJson) noexcept
+{
+    const std::optional<nlohmann::json> configJsonOpt = amjson::ParseJson(pathToConfigJson);
+    if (!configJsonOpt.has_value()) {
+        AM_ASSERT(false, "Failed to parse '{}' shader config file", pathToConfigJson.string().c_str());
+        return {};
+    }
+
+    const nlohmann::json& configJson = configJsonOpt.value();
+    const nlohmann::json& definesJson = configJson[JSON_SHADER_CONFIG_DEFINES_FIELD_NAME];
+
+    VulkanShaderGroupConfigInfo info = {};
+    info.defines = amjson::ParseJsonArray<std::string>(definesJson);
 
     return info;
 }
 
 
-static VulkanShaderIntermediateData CreateVulkanShaderIntermediateData(const VulkanShaderConfigInfo& configInfo) noexcept
+static std::optional<VulkanShaderIntermediateData> CreateVulkanShaderModuleIntermediateData(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept
 {
+    AM_ASSERT_GRAPHICS_API(configInfo.pFilepath, "configInfo.pFilepath is nullptr");
+    AM_ASSERT_GRAPHICS_API(configInfo.pGroupConfigInfo, "configInfo.pGroupConfigInfo is nullptr");
+
+    std::optional<std::vector<char>> sourceCodeOpt = ReadFile(*configInfo.pFilepath);
+            
+    if(!sourceCodeOpt.has_value()) {
+        AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' invalid content. Skiped", configInfo.pFilepath->filename().string().c_str());
+        return {};
+    }
+
+    std::vector<char>& sourceCode = sourceCodeOpt.value();
+
     VulkanShaderIntermediateData data = {};
-    // data.compileOptions.
+    data.code     = std::move(sourceCode);
+    data.kind     = configInfo.kind == VulkanShaderKind_VERTEX ? shaderc_vertex_shader : shaderc_fragment_shader;
+    data.filename = configInfo.pFilepath->filename().string();
+    
+#if defined(AM_DEBUG)
+    data.compileOptions.SetOptimizationLevel(shaderc_optimization_level_zero);
+#else
+    data.compileOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif
+
+    for (const std::string& define : configInfo.pGroupConfigInfo->defines) {
+        data.compileOptions.AddMacroDefinition(define);
+    }
 
     return data;
 }
@@ -121,56 +183,44 @@ VulkanShaderSystem::~VulkanShaderSystem()
     if (IsVulkanLogicalDeviceValid()) {
         for (VulkanShaderModuleGroup& group : m_shaderModuleGroups) {
             for (VulkanShaderModule& module : group.modules) {
-                vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
+                if (module.pModule != VK_NULL_HANDLE) {
+                    vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
+                }
             }
         }
     }
 }
 
 
-VulkanShaderModule VulkanShaderSystem::CreateVulkanShaderModule(const fs::directory_entry &shaderFileEntry) noexcept
+VulkanShaderModule VulkanShaderSystem::CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept
 {
-    const fs::path& filepath = shaderFileEntry.path();
+    AM_ASSERT_GRAPHICS_API(configInfo.pGroupConfigInfo, "configInfo.pGroupConfigInfo is nullptr");
+    AM_ASSERT_GRAPHICS_API(configInfo.pFilepath, "configInfo.pFilepath is nullptr");
 
+    const fs::path& filepath = *configInfo.pFilepath;
     const std::string filename = filepath.filename().string();
-    const std::string extension = filepath.extension().string();
-            
-    const bool isVertexShader     = extension == AM_VERTEX_SHADER_EXTENSION;
-    const bool isPixelShader      = extension == AM_PIXEL_SHADER_EXTENSION;
-    const bool isShaderConfigFile = extension == AM_SHADER_CONFIG_EXTENSION;
 
-    if (isShaderConfigFile) {
+    if (configInfo.kind >= VulkanShaderKind_COUNT) {
+        AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' invalid kind. Skiped", filename.c_str());
         return {};
     }
             
-    const bool isCorrectShaderKind = isVertexShader || isPixelShader;
-            
-    if (!isCorrectShaderKind) {
-        AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' has unrecognized extension '{}'. Skiped", filename.c_str(), extension.c_str());
+    std::optional<VulkanShaderIntermediateData> shaderIntermediateDataOpt = CreateVulkanShaderModuleIntermediateData(configInfo);
+    if (!shaderIntermediateDataOpt.has_value()) {
         return {};
     }
 
-    std::optional<std::vector<char>> sourceCodeOpt = ReadFile(filepath);
-            
-    if(!sourceCodeOpt.has_value()) {
-        AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' invalid content. Skiped", filename.c_str());
-        return {};
-    }
-            
-    VulkanShaderIntermediateData data = {};
-    data.filename   = filename.c_str();
-    data.kind       = isVertexShader ? shaderc_vertex_shader : shaderc_fragment_shader;
-    data.code       = std::move(sourceCodeOpt.value());
+    VulkanShaderIntermediateData& shaderIntermediateData = shaderIntermediateDataOpt.value();
 
-    if (!GetSPIRVCode(data)) {
+    if (!GetSPIRVCode(shaderIntermediateData)) {
         AM_LOG_GRAPHICS_API_ERROR("Shader '{}' skiped", filename.c_str());
         return {};
     }
 
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = data.spirvCode.size() * sizeof(uint32_t);
-    createInfo.pCode    = data.spirvCode.data();
+    createInfo.codeSize = shaderIntermediateData.spirvCode.size() * sizeof(uint32_t);
+    createInfo.pCode    = shaderIntermediateData.spirvCode.data();
 
     VkShaderModule pModule;
     if (vkCreateShaderModule(s_pLogicalDevice, &createInfo, nullptr, &pModule) != VK_SUCCESS) {
@@ -178,11 +228,11 @@ VulkanShaderModule VulkanShaderSystem::CreateVulkanShaderModule(const fs::direct
         return {};
     }
 
-    AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Shader module '{}' created"), data.filename);
+    AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Shader module '{}' created"), filename.c_str());
 
     VulkanShaderModule module = {};
     module.pModule = pModule;
-    module.kind = isVertexShader ? VulkanShaderKind_VERTEX : VulkanShaderKind_PIXEL;
+    module.kind = configInfo.kind;
 
     return module;
 }
@@ -316,13 +366,54 @@ void VulkanShaderSystem::CompileShaders() noexcept
 
     m_shaderModuleGroups.clear();
 
-    ForEachDirectory(paths::AM_PROJECT_SHADERS_DIR_PATH, [this](const fs::directory_entry& dirEntry)
+    ForEachSubDirectory(paths::AM_PROJECT_SHADERS_DIR_PATH, [this](const fs::directory_entry& dirEntry)
     {
+        std::optional<fs::path> configFilepathOpt = FindFirstFileInSubDirectoriesIf(dirEntry, [](const fs::directory_entry& dirEntry)
+        {
+            return IsShaderGroupConfigFile(dirEntry.path()); 
+        });
+
+        if (!configFilepathOpt.has_value()) {
+            AM_LOG_GRAPHICS_API_ERROR("Can't find config JSON file in {} directory", dirEntry.path().string().c_str());
+            return;
+        }
+
+        const std::optional<VulkanShaderGroupConfigInfo> groupConfigInfoOpt = GetVulkanShaderGroupConfigInfo(configFilepathOpt.value());
+
+        if (!groupConfigInfoOpt.has_value()) {
+            return;
+        }
+
+        const VulkanShaderGroupConfigInfo& groupConfigInfo = groupConfigInfoOpt.value();
+
         VulkanShaderModuleGroup moduleGroup;
 
-        ForEachFileInSubDirectories(dirEntry.path(), [this, &moduleGroup](const fs::directory_entry& fileEntry)
+        ForEachFileInSubDirectories(dirEntry.path(), [this, &moduleGroup, &groupConfigInfo](const fs::directory_entry& fileEntry)
         {
-            VulkanShaderModule shaderModule = CreateVulkanShaderModule(fileEntry);
+            const fs::path& filepath = fileEntry.path();
+
+            if (IsShaderGroupConfigFile(filepath)) {
+                return;
+            }
+
+            const fs::path extension = filepath.extension();
+
+            const bool isVertexShader = IsVertexShaderFileCorrectExtension(extension);
+            const bool isPixelShader = IsPixelShaderFileCorrectExtension(extension);
+
+            if (!isVertexShader && !isPixelShader) {
+                const fs::path filename = filepath.filename();
+                AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' has unrecognized extension '{}'. Skiped", filename.string().c_str(), extension.string().c_str());
+                
+                return;
+            }
+
+            VulkanShaderModuleIntermediateDataConfigInfo moduleConfig = {};
+            moduleConfig.pGroupConfigInfo = &groupConfigInfo;
+            moduleConfig.pFilepath = &filepath;
+            moduleConfig.kind = isVertexShader ? VulkanShaderKind_VERTEX : isPixelShader ? VulkanShaderKind_PIXEL : VulkanShaderKind_COUNT;
+
+            VulkanShaderModule shaderModule = CreateVulkanShaderModule(moduleConfig);
             if (shaderModule.IsVaild()) {
                 moduleGroup.modules[shaderModule.kind] = shaderModule;
             }

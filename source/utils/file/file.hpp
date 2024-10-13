@@ -1,27 +1,47 @@
 #include "file.h"
 
 
-template <typename Func, typename... Args>
-inline void ForEachDirectory(const fs::path &root, const Func &func, Args &&...args) noexcept
+template <typename Func>
+inline void ForEachSubDirectory(const fs::path &root, const Func &func) noexcept
 {
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(root)) {
         if (entry.is_directory()) {
-            ForEachDirectory(entry.path(), func, std::forward<Args>(args)...);
-            func(entry, std::forward<Args>(args)...);
+            ForEachSubDirectory(entry.path(), func);
+            func(entry);
         }
     }
 }
 
 
-template <typename Func, typename... Args>
-inline void ForEachFileInSubDirectories(const fs::path& rootDir, const Func &func, Args &&...args) noexcept
+template <typename Func>
+inline void ForEachFileInSubDirectories(const fs::path& rootDir, const Func &func) noexcept
 {
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
         if (entry.is_directory()) {
-            ForEachFileInSubDirectories(entry.path(), func, std::forward<Args>(args)...);
+            ForEachFileInSubDirectories(entry.path(), func);
             continue;
         }
         
-        func(entry, std::forward<Args>(args)...);
+        func(entry);
     }
+}
+
+
+template <typename Func>
+inline std::optional<fs::path> FindFirstFileInSubDirectoriesIf(const fs::path &rootDir, const Func &func) noexcept
+{
+    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
+        const fs::path& entryPath = entry.path();
+        
+        if (entry.is_directory()) {
+            ForEachFileInSubDirectories(entryPath, func);
+            continue;
+        }
+        
+        if (func(entry)) {
+            return entryPath;
+        }
+    }
+
+    return std::nullopt;
 }
