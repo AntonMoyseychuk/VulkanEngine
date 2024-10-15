@@ -172,6 +172,12 @@ struct VulkanSwapChain
 };
 
 
+struct VulkanGraphicsPipeline
+{
+    VkPipelineLayout pLayout;
+};
+
+
 class VulkanApplication
 {
 public:
@@ -244,11 +250,12 @@ private:
 
     struct VulkanState
     {
-        VulkanInstance       intance;
-        VulkanPhysicalDevice physicalDevice;
-        VulkanLogicalDevice  logicalDevice;
-        VulkanSurface        surface;
-        VulkanSwapChain      swapChain;
+        VulkanInstance          intance;
+        VulkanPhysicalDevice    physicalDevice;
+        VulkanLogicalDevice     logicalDevice;
+        VulkanSurface           surface;
+        VulkanSwapChain         swapChain;
+        VulkanGraphicsPipeline  graphicsPipeline;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 

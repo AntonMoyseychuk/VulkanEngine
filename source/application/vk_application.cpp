@@ -920,6 +920,8 @@ bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInf
         return true;
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan debug message callback..."));
+
     VkDebugUtilsMessengerCreateInfoEXT createInfo = GetVkDebugUtilsMessengerCreateInfo(initInfo);
 
     if (CreateDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, &createInfo, nullptr, &s_pVulkanState->intance.pDebugMessenger) != VK_SUCCESS) {
@@ -927,6 +929,7 @@ bool VulkanApplication::InitVulkanDebugCallback(const VulkanDebugCallbackInitInf
         return false;
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan debug message callback initialization finished..."));
     return true;
 }
 
@@ -946,6 +949,8 @@ bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInf
         AM_LOG_WARN("Vulkan instance is already initialized");
         return true;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan instance..."));
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -1004,6 +1009,7 @@ bool VulkanApplication::InitVulkanInstance(const VulkanInstanceInitInfo &initInf
     }
 #endif
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan instance initialization finished"));
     return true;
 }
 
@@ -1038,6 +1044,8 @@ bool VulkanApplication::InitVulkanSurface() noexcept
         return false;
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan surface..."));
+
     VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     surfaceCreateInfo.hwnd = glfwGetWin32Window(s_pGLFWWindow);
@@ -1048,6 +1056,7 @@ bool VulkanApplication::InitVulkanSurface() noexcept
         return false;
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan surface initialization finished"));
     return true;
 #else
     return false;
@@ -1079,6 +1088,8 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
         AM_ASSERT(false, "Vulkan surface must be initialized before physical device initialization");
         return false;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan physical device..."));
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(s_pVulkanState->intance.pInstance, &deviceCount, nullptr);
@@ -1139,6 +1150,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo 
     s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
     s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan physical device initialization finished"));
     return true;
 }
 
@@ -1159,6 +1171,8 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         AM_ASSERT(false, "Vulkan physical device must be initialized before logical device initialization");
         return false;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan logical device..."));
 
     const VulkanPhysicalDevice& physicalDevice                          = s_pVulkanState->physicalDevice;
     const std::vector<VulkanQueueFamilies::QueueFamily>& queueFamilies  = s_pVulkanState->physicalDevice.queueFamilies.families;
@@ -1222,6 +1236,7 @@ bool VulkanApplication::InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInf
         }
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan logical device initialization finished"));
     return true;
 }
 
@@ -1260,6 +1275,8 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
         AM_ASSERT(false, "Vulkan surface must be initialized before swap chain initialization");
         return false;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan swap chain..."));
 
     VulkanSwapChainDesc& swapChainDesc = s_pVulkanState->swapChain.desc;
 
@@ -1356,6 +1373,8 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
         }
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan swap chain initialization finished"));
+
     return true;
 }
 
@@ -1384,6 +1403,18 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
         return false;
     }
 
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT(false, "VulkanLogicalDevice must be initialized before graphics pipeline initialization");
+        return false;
+    }
+
+    if (!IsVulkanSwapChainInitialized()) {
+        AM_ASSERT(false, "VulkanSwapChain must be initialized before graphics pipeline initialization");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan graphics pipeline..."));
+
     VulkanShaderSystem& shaderSystem = VulkanShaderSystem::Instance();
     
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
@@ -1400,6 +1431,107 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, pixShaderStageInfo };
 
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
+    vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = nullptr;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = nullptr;
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
+    inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+    VkViewport viewportInfo = {};
+    viewportInfo.x = 0.0f;
+    viewportInfo.y = 0.0f;
+    viewportInfo.width = s_pVulkanState->swapChain.desc.currExtent.width;
+    viewportInfo.height = s_pVulkanState->swapChain.desc.currExtent.height;
+    viewportInfo.minDepth = 0.0f;
+    viewportInfo.maxDepth = 1.0f;
+
+    VkRect2D scissorInfo = {};
+    scissorInfo.offset = { 0, 0 };
+    scissorInfo.extent = s_pVulkanState->swapChain.desc.currExtent;
+
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.pViewports = &viewportInfo;
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.pScissors = &scissorInfo;
+    viewportStateCreateInfo.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo = {};
+    rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizerCreateInfo.depthClampEnable = VK_FALSE;
+    rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+    rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizerCreateInfo.depthBiasEnable = VK_FALSE;
+    rasterizerCreateInfo.depthBiasConstantFactor = 0.0f;
+    rasterizerCreateInfo.depthBiasClamp = 0.0f;
+    rasterizerCreateInfo.depthBiasSlopeFactor = 0.0f;
+
+    VkPipelineMultisampleStateCreateInfo multisamplingCreateInfo = {};
+    multisamplingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisamplingCreateInfo.sampleShadingEnable = VK_FALSE;
+    multisamplingCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisamplingCreateInfo.minSampleShading = 1.0f;
+    multisamplingCreateInfo.pSampleMask = nullptr;
+    multisamplingCreateInfo.alphaToCoverageEnable = VK_FALSE;
+    multisamplingCreateInfo.alphaToOneEnable = VK_FALSE;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+    colorBlendAttachmentState.colorWriteMask = 
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachmentState.blendEnable = VK_FALSE;
+    colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; 
+    colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    VkPipelineColorBlendStateCreateInfo colorBlendingCreateInfo = {};
+    colorBlendingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlendingCreateInfo.logicOpEnable = VK_FALSE;
+    colorBlendingCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+    colorBlendingCreateInfo.attachmentCount = 1;
+    colorBlendingCreateInfo.pAttachments = &colorBlendAttachmentState;
+    colorBlendingCreateInfo.blendConstants[0] = 0.0f;
+    colorBlendingCreateInfo.blendConstants[1] = 0.0f;
+    colorBlendingCreateInfo.blendConstants[2] = 0.0f;
+    colorBlendingCreateInfo.blendConstants[3] = 0.0f;
+
+    VkDynamicState dynamicStates[] = { 
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+    dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+    dynamicStateCreateInfo.dynamicStateCount = _countof(dynamicStates);
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.setLayoutCount = 0;
+    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+
+    VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+    VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
+
+    if (vkCreatePipelineLayout(pLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &pPipelineLayout) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan pipeline creation failed");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan graphics pipeline initialization finished"));
+
     return true;
 }
 
@@ -1407,7 +1539,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
 void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
 {
     if (s_pVulkanState) {
-
+        vkDestroyPipelineLayout(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->graphicsPipeline.pLayout, nullptr);
     }
 }
 
@@ -1418,6 +1550,8 @@ bool VulkanApplication::InitVulkan() noexcept
         AM_LOG_WARN("Vulkan is already initialized");
         return true;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan..."));
 
     s_pVulkanState = std::make_unique<VulkanState>();
 
@@ -1459,6 +1593,8 @@ bool VulkanApplication::InitVulkan() noexcept
     if (!InitVulkanGraphicsPipeline()) {
         return false;
     }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished"));
 
     return true;
 }
@@ -1547,7 +1683,7 @@ bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
 
 bool VulkanApplication::IsVulkanGraphicsPipelineInitialized() noexcept
 {
-    return false;
+    return s_pVulkanState && s_pVulkanState->graphicsPipeline.pLayout != VK_NULL_HANDLE;
 }
 
 

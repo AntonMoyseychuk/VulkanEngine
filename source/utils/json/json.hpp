@@ -9,7 +9,7 @@ namespace amjson
         }
 
         if (!json.is_array()) {
-            AM_LOG_WARN("Trying to parse Json node to invalid type (array)");
+            AM_LOG_WARN("Trying to parse Json node to invalid type ({})", json.type_name());
             return {};
         }
 

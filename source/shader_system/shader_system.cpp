@@ -123,6 +123,8 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
         return true;
     }
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing VulkanShaderSystem..."));
+
     if (pLogicalDevice == VK_NULL_HANDLE) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device is VK_NULL_HANDLE");
         return false;
@@ -138,6 +140,7 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
     s_pShaderSysInstace->RecompileShaders();
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "VulkanShaderSystem initialization finished"));
     return true;
 }
 
