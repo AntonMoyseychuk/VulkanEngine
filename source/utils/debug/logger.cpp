@@ -20,7 +20,7 @@ Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const fs::path &
 
     const nlohmann::json& json = jsonOpt.value();
     
-    const nlohmann::json& loggers = json[JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME];
+    const nlohmann::json& loggers = AM_GET_JSON_SUB_NODE(json, JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME);
     if (loggers.empty()) {
         AM_LOG_WARN("No custom loggers are specified in the log system configuration json file");
         return {};
@@ -33,8 +33,8 @@ Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const fs::path &
     for (const auto& logger : loggers.items()) {
         const nlohmann::json& value = logger.value();
 
-        value[JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME].get_to(loggerInfo.loggerName);
-        value[JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME].get_to(loggerInfo.outputPattern);
+        AM_GET_JSON_SUB_NODE(value, JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME).get_to(loggerInfo.loggerName);
+        AM_GET_JSON_SUB_NODE(value, JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME).get_to(loggerInfo.outputPattern);
 
         info.infos.emplace_back(loggerInfo);
     }

@@ -15,8 +15,8 @@ namespace utils
             const uint32_t resLine = function ? line : 0;
             const char* resAdditionalInfo = additionalInfo ? additionalInfo : NOT_SPECIFIED_MSG;
 
-            std::string format0 = fmt::format("{}\n\t- File: {}\n\t- Function: {} ({})\n\t- Additional info: {}",
-                message, resFile, resFunction, resLine, resAdditionalInfo);
+            std::string format0 = fmt::format("{}\n\t- File: {} (line: {})\n\t- Function: {}\n\t- Additional info: {}",
+                message, resFile, resLine, resFunction, resAdditionalInfo);
             
             pLogger->log(level, format0);
         }

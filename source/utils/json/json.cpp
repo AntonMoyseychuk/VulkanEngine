@@ -27,4 +27,46 @@ namespace amjson
             return {};
         }
     }
+    
+    
+    nlohmann::json& GetJsonSubNode(nlohmann::json& rootNode, const char* pNodeName) noexcept
+    {
+        AM_ASSERT(pNodeName, "pNodeName is nullptr");
+        AM_ASSERT(rootNode.contains(pNodeName), "Root node doesn't contain '{}' subnode", pNodeName);
+
+        return rootNode[pNodeName];
+    }
+    
+    
+    nlohmann::json& GetJsonSubNode(nlohmann::json& rootNode, const std::string& nodeName) noexcept
+    {
+        return GetJsonSubNode(rootNode, nodeName.c_str());
+    }
+    
+    
+    nlohmann::json& GetJsonSubNode(nlohmann::json& rootNode, const std::string_view& nodeName) noexcept
+    {
+        return GetJsonSubNode(rootNode, nodeName.data());
+    }
+
+
+    const nlohmann::json& GetJsonSubNode(const nlohmann::json& rootNode, const char* pNodeName) noexcept
+    {
+        AM_ASSERT(pNodeName, "pNodeName is nullptr");
+        AM_ASSERT(rootNode.contains(pNodeName), "Root node doesn't contain '{}' subnode", pNodeName);
+
+        return rootNode[pNodeName];
+    }
+    
+    
+    const nlohmann::json& GetJsonSubNode(const nlohmann::json& rootNode, const std::string& nodeName) noexcept
+    {
+        return GetJsonSubNode(rootNode, nodeName.c_str());
+    }
+    
+    
+    const nlohmann::json& GetJsonSubNode(const nlohmann::json& rootNode, const std::string_view& nodeName) noexcept
+    {
+        return GetJsonSubNode(rootNode, nodeName.data());
+    }
 }

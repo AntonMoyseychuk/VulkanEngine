@@ -1,25 +1,44 @@
 namespace amjson
 {
     template <typename T>
-    inline std::vector<T> ParseJsonArray(const nlohmann::json& json) noexcept
+    inline std::vector<T> ParseJsonSubNodeToArray(const nlohmann::json& rootNode, const char* pNodeName) noexcept
     {
-        if (json.empty()) {
-            AM_LOG_WARN("Json node is empty");
+        AM_ASSERT(pNodeName, "pNodeName is nullptr");
+        AM_ASSERT(rootNode.contains(pNodeName), "Root node doesn't contain '{}' subnode", pNodeName);
+
+        const nlohmann::json& jsonSubNode = rootNode[pNodeName];
+
+        if (jsonSubNode.empty()) {
+            AM_LOG_WARN("Json node '{}' is empty", pNodeName);
             return {};
         }
 
-        if (!json.is_array()) {
-            AM_LOG_WARN("Trying to parse Json node to invalid type ({})", json.type_name());
+        if (!jsonSubNode.is_array()) {
+            AM_LOG_WARN("Trying to parse Json node '{}' to invalid type ({})", pNodeName, jsonSubNode.type_name());
             return {};
         }
 
         std::vector<T> result;
-        result.reserve(json.size());
+        result.reserve(jsonSubNode.size());
 
-        for (const auto& item : json.items()) {
+        for (const auto& item : jsonSubNode.items()) {
             result.emplace_back(item.value().get<T>());
         }
 
         return result;
+    }
+
+
+    template <typename T>
+    inline std::vector<T> ParseJsonSubNodeToArray(const nlohmann::json& rootNode, const std::string& nodeName) noexcept
+    {
+        return ParseJsonSubNodeToArray<T>(rootNode, nodeName.c_str());
+    }
+
+
+    template <typename T>
+    inline std::vector<T> ParseJsonSubNodeToArray(const nlohmann::json& rootNode, const std::string_view& nodeName) noexcept
+    {
+        return ParseJsonSubNodeToArray<T>(rootNode, nodeName.data());
     }
 }

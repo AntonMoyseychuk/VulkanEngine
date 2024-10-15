@@ -66,10 +66,9 @@ static std::optional<VulkanShaderGroupConfigInfo> GetVulkanShaderGroupConfigInfo
     }
 
     const nlohmann::json& configJson = configJsonOpt.value();
-    const nlohmann::json& definesJson = configJson[JSON_SHADER_CONFIG_DEFINES_FIELD_NAME];
 
     VulkanShaderGroupConfigInfo info = {};
-    info.defines = amjson::ParseJsonArray<std::string>(definesJson);
+    info.defines = AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, configJson, JSON_SHADER_CONFIG_DEFINES_FIELD_NAME);
 
     return info;
 }
