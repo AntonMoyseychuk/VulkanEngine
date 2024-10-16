@@ -87,6 +87,8 @@ public:
 
     ~VulkanShaderSystem();
 
+    void ClearShaderModuleGroups() noexcept;
+
     VulkanShaderModule CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept;
     void AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept;
 

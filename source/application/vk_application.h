@@ -181,6 +181,7 @@ struct VulkanRenderPass
 struct VulkanGraphicsPipeline
 {
     VkPipelineLayout pLayout;
+    VkPipeline pPipeline;
 };
 
 

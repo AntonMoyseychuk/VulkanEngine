@@ -1475,12 +1475,17 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "VulkanLogicalDevice must be initialized before graphics pipeline initialization");
+        AM_ASSERT(false, "Vulkan logical device must be initialized before graphics pipeline initialization");
         return false;
     }
 
     if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT(false, "VulkanSwapChain must be initialized before graphics pipeline initialization");
+        AM_ASSERT(false, "Vulkan swap chain must be initialized before graphics pipeline initialization");
+        return false;
+    }
+
+    if (!IsVulkanRenderPassInitialized()) {
+        AM_ASSERT(false, "Vulkan render pass must be initialized before graphics pipeline initialization");
         return false;
     }
 
@@ -1586,7 +1591,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     dynamicStateCreateInfo.pDynamicStates = dynamicStates;
     dynamicStateCreateInfo.dynamicStateCount = _countof(dynamicStates);
 
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 0;
     pipelineLayoutCreateInfo.pSetLayouts = nullptr;
@@ -1597,6 +1602,31 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
 
     if (vkCreatePipelineLayout(pLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &pPipelineLayout) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan pipeline layout creation failed");
+        return false;
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
+    pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineCreateInfo.stageCount = 2;
+    pipelineCreateInfo.pStages = shaderStages;
+    pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
+    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
+    pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
+    pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
+    pipelineCreateInfo.pMultisampleState = &multisamplingCreateInfo;
+    pipelineCreateInfo.pDepthStencilState = nullptr;
+    pipelineCreateInfo.pColorBlendState = &colorBlendingCreateInfo;
+    pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
+    pipelineCreateInfo.layout = pPipelineLayout;
+    pipelineCreateInfo.renderPass = s_pVulkanState->renderPass.pRenderPass;
+    pipelineCreateInfo.subpass = 0;
+    pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineCreateInfo.basePipelineIndex = -1;
+
+    VkPipeline& pPipeline = s_pVulkanState->graphicsPipeline.pPipeline;
+
+    if (vkCreateGraphicsPipelines(pLogicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pPipeline) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan pipeline creation failed");
         return false;
     }
@@ -1610,7 +1640,10 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
 void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
 {
     if (s_pVulkanState) {
-        vkDestroyPipelineLayout(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->graphicsPipeline.pLayout, nullptr);
+        VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+
+        vkDestroyPipelineLayout(pLogicalDevice, s_pVulkanState->graphicsPipeline.pLayout, nullptr);
+        vkDestroyPipeline(pLogicalDevice, s_pVulkanState->graphicsPipeline.pPipeline, nullptr);
     }
 }
 
@@ -1660,6 +1693,10 @@ bool VulkanApplication::InitVulkan() noexcept
     }
 
     if (!InitVulkanSwapChain()) {
+        return false;
+    }
+
+    if (!InitVulkanRenderPass()) {
         return false;
     }
 
@@ -1764,7 +1801,9 @@ bool VulkanApplication::IsVulkanRenderPassInitialized() noexcept
 
 bool VulkanApplication::IsVulkanGraphicsPipelineInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->graphicsPipeline.pLayout != VK_NULL_HANDLE;
+    return s_pVulkanState 
+        && s_pVulkanState->graphicsPipeline.pLayout != VK_NULL_HANDLE
+        && s_pVulkanState->graphicsPipeline.pPipeline != VK_NULL_HANDLE;
 }
 
 

@@ -182,13 +182,17 @@ VulkanShaderSystem::VulkanShaderSystem()
 
 VulkanShaderSystem::~VulkanShaderSystem()
 {
-    if (IsVulkanLogicalDeviceValid()) {
-        for (VulkanShaderModuleGroup& group : m_shaderModuleGroups) {
-            for (VulkanShaderModule& module : group.modules) {
-                if (module.pModule != VK_NULL_HANDLE) {
-                    vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
-                }
-            }
+    ClearShaderModuleGroups();
+}
+
+
+void VulkanShaderSystem::ClearShaderModuleGroups() noexcept
+{
+    AM_ASSERT_GRAPHICS_API(IsVulkanLogicalDeviceValid(), "Reference to invalid Vulkan logical device inside {}", __FUNCTION__);
+
+    for (VulkanShaderModuleGroup& group : m_shaderModuleGroups) {
+        for (VulkanShaderModule& module : group.modules) {
+            vkDestroyShaderModule(s_pLogicalDevice, module.pModule, nullptr);
         }
     }
 }
