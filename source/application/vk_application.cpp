@@ -1399,6 +1399,69 @@ void VulkanApplication::TerminateVulkanSwapChain() noexcept
 }
 
 
+bool VulkanApplication::InitVulkanRenderPass() noexcept
+{
+    if (IsVulkanRenderPassInitialized()) {
+        AM_LOG_WARN("Vulkan render pass is already initialized");
+        return true;
+    }
+
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan logical device must be initialized before render pass initialization");
+        return false;
+    }
+
+    if (!IsVulkanSwapChainInitialized()) {
+        AM_ASSERT(false, "Vulkan logical device must be initialized before render pass initialization");
+        return false;
+    }
+
+    VkAttachmentDescription colorAttachmentInfo = {};
+    colorAttachmentInfo.format = s_pVulkanState->swapChain.desc.currFormat;
+    colorAttachmentInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachmentInfo.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentInfo.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachmentInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachmentInfo.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentInfoRef = {};
+    colorAttachmentInfoRef.attachment = 0;
+    colorAttachmentInfoRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpassInfo = {};
+    subpassInfo.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpassInfo.colorAttachmentCount = 1;
+    subpassInfo.pColorAttachments = &colorAttachmentInfoRef;
+
+    VkRenderPassCreateInfo renderPassCreateInfo{};
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &colorAttachmentInfo;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpassInfo;
+
+    VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+    VkRenderPass& pRenderPass = s_pVulkanState->renderPass.pRenderPass;
+
+    if (vkCreateRenderPass(pLogicalDevice, &renderPassCreateInfo, nullptr, &pRenderPass) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan render pass creation failed");
+        return false;
+    }
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanRenderPass() noexcept
+{
+    if (s_pVulkanState) {
+        vkDestroyRenderPass(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->renderPass.pRenderPass, nullptr);
+    }
+}
+
+
 bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
 {
     if (IsVulkanGraphicsPipelineInitialized()) {
@@ -1613,6 +1676,7 @@ bool VulkanApplication::InitVulkan() noexcept
 void VulkanApplication::TerminateVulkan() noexcept
 {
     TerminateVulkanGraphicsPipeline();
+    TerminateVulkanRenderPass();
     TerminateVulkanSwapChain();
     VulkanShaderSystem::Terminate();
     TerminateVulkanLogicalDevice();
@@ -1691,6 +1755,13 @@ bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
     return true;
 }
 
+
+bool VulkanApplication::IsVulkanRenderPassInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->renderPass.pRenderPass != VK_NULL_HANDLE;
+}
+
+
 bool VulkanApplication::IsVulkanGraphicsPipelineInitialized() noexcept
 {
     return s_pVulkanState && s_pVulkanState->graphicsPipeline.pLayout != VK_NULL_HANDLE;
@@ -1705,6 +1776,7 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
         && IsVulkanPhysicalDeviceInitialized()
         && IsVulkanLogicalDeviceInitialized()
         && IsVulkanSwapChainInitialized()
+        && IsVulkanRenderPassInitialized()
         && IsVulkanGraphicsPipelineInitialized();
 }
 

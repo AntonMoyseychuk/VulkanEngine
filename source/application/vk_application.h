@@ -172,6 +172,12 @@ struct VulkanSwapChain
 };
 
 
+struct VulkanRenderPass
+{
+    VkRenderPass pRenderPass;
+};
+
+
 struct VulkanGraphicsPipeline
 {
     VkPipelineLayout pLayout;
@@ -222,6 +228,9 @@ private:
     static bool InitVulkanSwapChain() noexcept;
     static void TerminateVulkanSwapChain() noexcept;
 
+    static bool InitVulkanRenderPass() noexcept;
+    static void TerminateVulkanRenderPass() noexcept;
+
     static bool InitVulkanGraphicsPipeline() noexcept;
     static void TerminateVulkanGraphicsPipeline() noexcept;
 
@@ -236,6 +245,7 @@ private:
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
     static bool IsVulkanLogicalDeviceInitialized() noexcept;
     static bool IsVulkanSwapChainInitialized() noexcept;
+    static bool IsVulkanRenderPassInitialized() noexcept;
     static bool IsVulkanGraphicsPipelineInitialized() noexcept;
     
     static bool IsVulkanInitialized() noexcept;
@@ -255,6 +265,7 @@ private:
         VulkanLogicalDevice     logicalDevice;
         VulkanSurface           surface;
         VulkanSwapChain         swapChain;
+        VulkanRenderPass        renderPass;
         VulkanGraphicsPipeline  graphicsPipeline;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
