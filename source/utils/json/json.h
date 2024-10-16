@@ -10,11 +10,6 @@
 #include "utils/file/file.h"
 
 
-#define AM_GET_JSON_SUB_NODE(rootNode, nodeName) amjson::GetJsonSubNode(rootNode, nodeName)
-
-#define AM_PARSE_JSON_SUB_NODE_TO_ARRAY(arrayElementType, rootNode, nodeName) amjson::ParseJsonSubNodeToArray<arrayElementType>(rootNode, nodeName)
-
-
 namespace amjson
 {
     std::optional<nlohmann::json> ParseJson(const fs::path& pathToJson) noexcept;

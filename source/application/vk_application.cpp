@@ -93,10 +93,12 @@ static constexpr std::array<VkQueueFlagBits, VulkanQueueFamilies::RequiredQueueF
 
 AM_MAYBE_UNUSED static const nlohmann::json& GetVkInstanceOsBuildTypeSpecificJsonObj(const nlohmann::json& vkInstanceBaseNodeJson) noexcept
 {
-    const nlohmann::json& osNodeJson = AM_GET_JSON_SUB_NODE(vkInstanceBaseNodeJson, JSON_VK_CONFIG_OS_FIELD_NAME);
-    const nlohmann::json& osNodeSpecificJson = AM_GET_JSON_SUB_NODE(osNodeJson, JSON_VK_CONFIG_OS_NAME);
-    const nlohmann::json& buildNodeJson = AM_GET_JSON_SUB_NODE(osNodeSpecificJson, JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME);
-    const nlohmann::json& buildSpecificNodeJson = AM_GET_JSON_SUB_NODE(buildNodeJson, JSON_VK_CONFIG_BUILD_TYPE);
+    using namespace amjson;
+
+    const nlohmann::json& osNodeJson = GetJsonSubNode(vkInstanceBaseNodeJson, JSON_VK_CONFIG_OS_FIELD_NAME);
+    const nlohmann::json& osNodeSpecificJson = GetJsonSubNode(osNodeJson, JSON_VK_CONFIG_OS_NAME);
+    const nlohmann::json& buildNodeJson = GetJsonSubNode(osNodeSpecificJson, JSON_VK_CONFIG_BUILD_TYPE_FIELD_NAME);
+    const nlohmann::json& buildSpecificNodeJson = GetJsonSubNode(buildNodeJson, JSON_VK_CONFIG_BUILD_TYPE);
 
     return buildSpecificNodeJson;
 }
@@ -240,17 +242,19 @@ static VkDebugUtilsMessageTypeFlagsEXT GetVkDebugUtilsMessageTypeFlags(const std
 
 static VulkanDebugCallbackInitInfo ParseVulkanCallbackInitInfoJson(const nlohmann::json& instanceJson, const char* callbackConfigNodeName) noexcept
 {
-    const nlohmann::json& configInfoJson = AM_GET_JSON_SUB_NODE(instanceJson, callbackConfigNodeName);
+    using namespace amjson;
+
+    const nlohmann::json& configInfoJson = GetJsonSubNode(instanceJson, callbackConfigNodeName);
 
     VulkanDebugCallbackInitInfo result = {};
     result.pCallback = VulkanDebugCallback;
 
     std::vector<std::string> severityTokens = 
-        AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, configInfoJson, JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME);
+        ParseJsonSubNodeToArray<std::string>(configInfoJson, JSON_VK_CONFIG_INSTANCE_CALLBACK_SEVERITY_FIELD_NAME);
     result.messageSeverity = GetVkDebugUtilsMessageSeverityFlagBits(severityTokens);
 
     std::vector<std::string> messageTypeTokens = 
-        AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, configInfoJson, JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME);
+        ParseJsonSubNodeToArray<std::string>(configInfoJson, JSON_VK_CONFIG_INSTANCE_CALLBACK_MESSAGE_TYPES_FIELD_NAME);
     result.messageType = GetVkDebugUtilsMessageTypeFlags(messageTypeTokens);
 
     return result;
@@ -401,7 +405,7 @@ static std::string MakeVulkanObjectsListString(const std::vector<VkObjT>& object
 
 AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayers(const nlohmann::json& vkInstanceBuildJson, const char* pNodeName) noexcept
 {
-    std::vector<std::string> requestedLayers = AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, vkInstanceBuildJson, pNodeName);
+    std::vector<std::string> requestedLayers = amjson::ParseJsonSubNodeToArray<std::string>(vkInstanceBuildJson, pNodeName);
 
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -435,7 +439,7 @@ AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayer
 
 static std::vector<std::string> GetVulkanInstanceExtensions(const nlohmann::json& vkInstanceBuildJson, const char* pNodeName) noexcept
 {
-    std::vector<std::string> requestedExtensions = AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, vkInstanceBuildJson, pNodeName);
+    std::vector<std::string> requestedExtensions = amjson::ParseJsonSubNodeToArray<std::string>(vkInstanceBuildJson, pNodeName);
 
     uint32_t availableVulkanExtCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, nullptr);
@@ -499,6 +503,8 @@ static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice&
 
 static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const fs::path& pathToJson) noexcept
 {
+    using namespace amjson;
+
     const std::optional<nlohmann::json> appInitInfoJsonOpt = amjson::ParseJson(pathToJson);
     if (!appInitInfoJsonOpt.has_value()) {
         return {};
@@ -506,13 +512,13 @@ static std::optional<VulkanAppInitInfo> ParseVulkanAppInitInfoJson(const fs::pat
     
     const nlohmann::json& appInitInfoJson = appInitInfoJsonOpt.value();
 
-    const nlohmann::json& windowConfigJson = AM_GET_JSON_SUB_NODE(appInitInfoJson, JSON_APP_CONFIG_WINDOW_FIELD_NAME);
+    const nlohmann::json& windowConfigJson = GetJsonSubNode(appInitInfoJson, JSON_APP_CONFIG_WINDOW_FIELD_NAME);
 
     VulkanAppInitInfo appInitInfo = {};
-    AM_GET_JSON_SUB_NODE(windowConfigJson, JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME).get_to(appInitInfo.windowInitInfo.title);
-    AM_GET_JSON_SUB_NODE(windowConfigJson, JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME).get_to(appInitInfo.windowInitInfo.width);
-    AM_GET_JSON_SUB_NODE(windowConfigJson, JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME).get_to(appInitInfo.windowInitInfo.height);
-    AM_GET_JSON_SUB_NODE(windowConfigJson, JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME).get_to(appInitInfo.windowInitInfo.resizable);
+    GetJsonSubNode(windowConfigJson, JSON_APP_CONFIG_WINDOW_TITLE_FIELD_NAME).get_to(appInitInfo.windowInitInfo.title);
+    GetJsonSubNode(windowConfigJson, JSON_APP_CONFIG_WINDOW_WIDTH_FIELD_NAME).get_to(appInitInfo.windowInitInfo.width);
+    GetJsonSubNode(windowConfigJson, JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME).get_to(appInitInfo.windowInitInfo.height);
+    GetJsonSubNode(windowConfigJson, JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME).get_to(appInitInfo.windowInitInfo.resizable);
 
     return appInitInfo;
 }
@@ -538,7 +544,7 @@ static VulkanPhysDeviceInitInfo ParseVulkanPhysDeviceInitInfoJson(const nlohmann
 {
     VulkanPhysDeviceInitInfo physDeviceInitInfo = {};
     physDeviceInitInfo.types = 
-        AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, vkPhysDeviceJson, JSON_VK_CONFIG_PHYS_DEVICE_TYPES_FIELD_NAME);
+        amjson::ParseJsonSubNodeToArray<std::string>(vkPhysDeviceJson, JSON_VK_CONFIG_PHYS_DEVICE_TYPES_FIELD_NAME);
 
     return physDeviceInitInfo;
 }
@@ -548,7 +554,7 @@ static VulkanLogicalDeviceInitInfo ParseVulkanLogicalDeviceInitInfoJson(const nl
 {
     VulkanLogicalDeviceInitInfo logicalDeviceInitInfo = {};
     logicalDeviceInitInfo.extensionNames = 
-        AM_PARSE_JSON_SUB_NODE_TO_ARRAY(std::string, vkLogicalDeviceJson, JSON_VK_CONFIG_LOGICAL_DEVICE_EXTENSIONS_FIELD_NAME);
+        amjson::ParseJsonSubNodeToArray<std::string>(vkLogicalDeviceJson, JSON_VK_CONFIG_LOGICAL_DEVICE_EXTENSIONS_FIELD_NAME);
 
     return logicalDeviceInitInfo;
 }
@@ -1548,6 +1554,8 @@ void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
 
 bool VulkanApplication::InitVulkan() noexcept
 {
+    using namespace amjson;
+
     if (IsVulkanInitialized()) {
         AM_LOG_WARN("Vulkan is already initialized");
         return true;
@@ -1564,9 +1572,9 @@ bool VulkanApplication::InitVulkan() noexcept
     }
     const nlohmann::json& vulkanConfigJson = vulkanConfigOpt.value();
 
-    const nlohmann::json& instanceConfigJson = AM_GET_JSON_SUB_NODE(vulkanConfigJson, JSON_VK_CONFIG_INSTANCE_FIELD_NAME);
-    const nlohmann::json& physDeviceConfigJson = AM_GET_JSON_SUB_NODE(vulkanConfigJson, JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME);
-    const nlohmann::json& logicalDeviceConfigJson = AM_GET_JSON_SUB_NODE(vulkanConfigJson, JSON_VK_CONFIG_LOGICAL_DEVICE_FIELD_NAME);
+    const nlohmann::json& instanceConfigJson = GetJsonSubNode(vulkanConfigJson, JSON_VK_CONFIG_INSTANCE_FIELD_NAME);
+    const nlohmann::json& physDeviceConfigJson = GetJsonSubNode(vulkanConfigJson, JSON_VK_CONFIG_PHYS_DEVICE_FIELD_NAME);
+    const nlohmann::json& logicalDeviceConfigJson = GetJsonSubNode(vulkanConfigJson, JSON_VK_CONFIG_LOGICAL_DEVICE_FIELD_NAME);
 
     if (!InitVulkanInstance(ParseVulkanInstanceInitInfoJson(instanceConfigJson))) {
         return false;

@@ -4,9 +4,8 @@ namespace amjson
     inline std::vector<T> ParseJsonSubNodeToArray(const nlohmann::json& rootNode, const char* pNodeName) noexcept
     {
         AM_ASSERT(pNodeName, "pNodeName is nullptr");
-        AM_ASSERT(rootNode.contains(pNodeName), "Root node doesn't contain '{}' subnode", pNodeName);
 
-        const nlohmann::json& jsonSubNode = rootNode[pNodeName];
+        const nlohmann::json& jsonSubNode = GetJsonSubNode(rootNode, pNodeName);
 
         if (jsonSubNode.empty()) {
             AM_LOG_WARN("Json node '{}' is empty", pNodeName);
