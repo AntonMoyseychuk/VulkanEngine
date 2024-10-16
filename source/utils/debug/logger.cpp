@@ -50,7 +50,7 @@ std::shared_ptr<spdlog::logger> Logger::CreateDefaultSpdlogger() noexcept
     }
 
     static const std::string DEFAULT_LOGGER_NAME = "DEFAULT";
-    static const std::string DEFAULT_LOGGER_PATTERN = "[%^%l%$] [%n]: %v";
+    static const std::string DEFAULT_LOGGER_PATTERN = "[%^%L%$] [%n] [%H:%M:%S:%e]: %v";
 
     std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_st(DEFAULT_LOGGER_NAME);
     logger->set_pattern(DEFAULT_LOGGER_PATTERN);

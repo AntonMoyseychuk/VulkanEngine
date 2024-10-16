@@ -2,17 +2,17 @@
     "loggers": {
         "application": {
             "name": "APP",
-            "pattern": "[%^%L%$] [%n]: %v"
+            "pattern": "[%^%L%$] [%n] [%H:%M:%S:%e]: %v"
         },
 
         "graphics_api": {
             "name": "VULKAN",
-            "pattern": "[%^%L%$] [%n]: %v"
+            "pattern": "[%^%L%$] [%n] [%H:%M:%S:%e]: %v"
         },
 
         "window_system": {
             "name": "GLFW",
-            "pattern": "[%^%L%$] [%n]: %v"
+            "pattern": "[%^%L%$] [%n] [%H:%M:%S:%e]: %v"
         }
     }
 }
