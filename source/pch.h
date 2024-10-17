@@ -32,3 +32,10 @@
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+
+#include "core.h"
+
+#if defined(AM_OS_WINDOWS)
+    #define WIN32_LEAN_AND_MEAN
+    #include <Windows.h>
+#endif
