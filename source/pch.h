@@ -23,6 +23,8 @@
 
 #include <type_traits>
 
+#include <random>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
