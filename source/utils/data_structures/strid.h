@@ -59,6 +59,7 @@ namespace ds
         bool operator>=(StrID strId) const noexcept { return m_id >= strId.m_id; }
 
         uint64_t GetId() const noexcept { return m_id; }
+        uint64_t Hash() const noexcept { return m_id; }
 
         bool IsValid() const noexcept { return m_id != StrIDDataStorage::GetInvalidIDHash(); }
 
@@ -74,6 +75,6 @@ namespace ds
 namespace std {
     template<>
     struct hash<ds::StrID> {
-        uint64_t operator()(const ds::StrID& id) const { return id.GetId(); }
+        uint64_t operator()(const ds::StrID& id) const { return id.Hash(); }
     };
 }

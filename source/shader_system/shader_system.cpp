@@ -10,17 +10,22 @@
 #include "utils/json/json.h"
 
 
+static constexpr const char* JSON_SHADERS_ROOT_CONFIG_FILENAME = "config.json";
+
+static constexpr const char* JSON_SHADERS_ROOT_CONFIG_VS_FILENAME_FIELD_NAME = "vs_filename";
+static constexpr const char* JSON_SHADERS_ROOT_CONFIG_PS_FILENAME_FIELD_NAME = "ps_filename";
+
+static constexpr const char* JSON_SHADER_SETUP_DEFINES_FIELD_NAME = "defines";
+
+
 static const fs::path AM_VERTEX_SHADER_EXTENSIONS[] = { ".vs", ".vsh", ".vert", ".glsl" };
 static const fs::path AM_PIXEL_SHADER_EXTENSIONS[] = { ".ps", ".fs", ".psh", ".frag", ".glsl" };
 static const fs::path AM_SHADER_CONFIG_EXTENSION = ".json";
 
 
-static constexpr const char* JSON_SHADER_CONFIG_DEFINES_FIELD_NAME = "defines";
-
-
 struct VulkanShaderIntermediateData
 {
-    std::vector<char>       code;
+    std::vector<uint8_t>       code;
     std::vector<uint32_t>   spirvCode;
 
     shaderc::CompileOptions compileOptions;
@@ -71,7 +76,7 @@ static std::optional<VulkanShaderGroupConfigInfo> GetVulkanShaderGroupConfigInfo
     const nlohmann::json& configJson = configJsonOpt.value();
 
     VulkanShaderGroupConfigInfo info = {};
-    info.defines = amjson::ParseJsonSubNodeToArray<std::string>(configJson, JSON_SHADER_CONFIG_DEFINES_FIELD_NAME);
+    info.defines = amjson::ParseJsonSubNodeToArray<std::string>(configJson, JSON_SHADER_SETUP_DEFINES_FIELD_NAME);
 
     return info;
 }
@@ -82,14 +87,14 @@ static std::optional<VulkanShaderIntermediateData> CreateVulkanShaderModuleInter
     AM_ASSERT_GRAPHICS_API(configInfo.pFilepath, "configInfo.pFilepath is nullptr");
     AM_ASSERT_GRAPHICS_API(configInfo.pGroupConfigInfo, "configInfo.pGroupConfigInfo is nullptr");
 
-    std::optional<std::vector<char>> sourceCodeOpt = ReadFile(*configInfo.pFilepath);
+    std::optional<std::vector<uint8_t>> sourceCodeOpt = ReadBinaryFile(*configInfo.pFilepath);
             
     if(!sourceCodeOpt.has_value()) {
         AM_LOG_GRAPHICS_API_ERROR("Shader compilation error: '{}' invalid content. Skiped", configInfo.pFilepath->filename().string().c_str());
         return {};
     }
 
-    std::vector<char>& sourceCode = sourceCodeOpt.value();
+    std::vector<uint8_t>& sourceCode = sourceCodeOpt.value();
 
     VulkanShaderIntermediateData data = {};
     data.code     = std::move(sourceCode);
@@ -247,21 +252,15 @@ VulkanShaderModule VulkanShaderSystem::CreateVulkanShaderModule(const VulkanShad
 }
 
 
-void VulkanShaderSystem::AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept
-{
-    m_shaderModuleGroups.emplace_back(group);
-}
-
-
 bool VulkanShaderSystem::PreprocessShader(VulkanShaderIntermediateData &data) noexcept
 {
     AM_ASSERT(IsInitialized(), "Calling {} while VulkanShaderSystem is not initialized", __FUNCTION__);
 
-    std::vector<char>& sourceCode = data.code;
+    std::vector<uint8_t>& sourceCode = data.code;
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Preprocessing '{}'..."), data.filename);
 
-    shaderc::PreprocessedSourceCompilationResult result = m_compiler.PreprocessGlsl(sourceCode.data(), sourceCode.size(), 
+    shaderc::PreprocessedSourceCompilationResult result = m_compiler.PreprocessGlsl(reinterpret_cast<char*>(sourceCode.data()), sourceCode.size(), 
         data.kind, data.filename.c_str(), data.compileOptions);
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
@@ -276,7 +275,7 @@ bool VulkanShaderSystem::PreprocessShader(VulkanShaderIntermediateData &data) no
     memcpy_s(sourceCode.data(), sourceCode.size(), preprocessedSourceCode, newSourceCodeSize);
 
 #if defined(AM_LOGGING_ENABLED)
-    std::string output(sourceCode.data(), sourceCode.size());
+    std::string output(reinterpret_cast<char*>(sourceCode.data()), sourceCode.size());
     AM_LOG_GRAPHICS_API_INFO("Preprocessed GLSL source code ({}):\n{}", data.filename, output.c_str());
 #endif
 
@@ -290,11 +289,11 @@ bool VulkanShaderSystem::CompileToAssembly(VulkanShaderIntermediateData &data) n
 {
     AM_ASSERT(IsInitialized(), "Calling {} while VulkanShaderSystem is not initialized", __FUNCTION__);
 
-    std::vector<char>& preproccessedSourceCode = data.code;
+    std::vector<uint8_t>& preproccessedSourceCode = data.code;
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Compling '{}' to assembly..."), data.filename);
 
-    shaderc::AssemblyCompilationResult result = m_compiler.CompileGlslToSpvAssembly(preproccessedSourceCode.data(), preproccessedSourceCode.size(),
+    shaderc::AssemblyCompilationResult result = m_compiler.CompileGlslToSpvAssembly(reinterpret_cast<char*>(preproccessedSourceCode.data()), preproccessedSourceCode.size(),
         data.kind, data.filename.c_str(), data.compileOptions);
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
@@ -305,13 +304,13 @@ bool VulkanShaderSystem::CompileToAssembly(VulkanShaderIntermediateData &data) n
     const char* assemlyCodeRaw = result.cbegin();
     const size_t assemblyCodeSize = (uintptr_t)result.cend() - (uintptr_t)assemlyCodeRaw;
     
-    std::vector<char>& assemblyCode = preproccessedSourceCode;
+    std::vector<uint8_t>& assemblyCode = preproccessedSourceCode;
 
     assemblyCode.resize(assemblyCodeSize);
-    memcpy_s(assemblyCode.data(), assemblyCode.size(), assemlyCodeRaw, assemblyCodeSize);
+    memcpy_s(reinterpret_cast<char*>(assemblyCode.data()), assemblyCode.size(), assemlyCodeRaw, assemblyCodeSize);
 
 #if defined(AM_LOGGING_ENABLED)
-    std::string output(assemblyCode.data(), assemblyCode.size());
+    std::string output(reinterpret_cast<char*>(assemblyCode.data()), assemblyCode.size());
     AM_LOG_GRAPHICS_API_INFO("SPIR-V assembly code ({}):\n{}", data.filename, output.c_str());
 #endif
 
@@ -325,11 +324,11 @@ bool VulkanShaderSystem::AssembleToSPIRV(VulkanShaderIntermediateData &data) noe
 {
     AM_ASSERT(IsInitialized(), "Calling {} while VulkanShaderSystem is not initialized", __FUNCTION__);
 
-    std::vector<char>& assemblyCode = data.code;
+    std::vector<uint8_t>& assemblyCode = data.code;
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Assembling '{}' to SPIR-V..."), data.filename);
 
-    shaderc::SpvCompilationResult result = m_compiler.AssembleToSpv(assemblyCode.data(), assemblyCode.size(), data.compileOptions);
+    shaderc::SpvCompilationResult result = m_compiler.AssembleToSpv(reinterpret_cast<char*>(assemblyCode.data()), assemblyCode.size(), data.compileOptions);
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
         AM_LOG_GRAPHICS_API_ERROR("Shader {} assembling to SPIR-V error:\n{}", data.filename, result.GetErrorMessage().c_str());
@@ -428,7 +427,7 @@ void VulkanShaderSystem::CompileShaders() noexcept
             }
         });
 
-        AddVulkanShaderModuleGroup(moduleGroup);
+        m_shaderModuleGroups.emplace_back(moduleGroup);
     });
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Shaders compilation finished"));

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "utils/debug/assertion.h"
+#include "shader_cache.h"
 
+#include "utils/debug/assertion.h"
 #include "utils/file/file.h"
 
 #include <vulkan/vulkan.h>
@@ -17,7 +18,6 @@ enum VulkanShaderKind : uint32_t
     VulkanShaderKind_PIXEL,
     VulkanShaderKind_COUNT,
 };
-
 
 
 struct VulkanShaderGroupConfigInfo
@@ -91,9 +91,6 @@ public:
 
     void ClearShaderModuleGroups() noexcept;
 
-    VulkanShaderModule CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept;
-    void AddVulkanShaderModuleGroup(const VulkanShaderModuleGroup& group) noexcept;
-
     void RecompileShaders() noexcept;
 
 private:
@@ -111,6 +108,8 @@ private:
 
     void CompileShaders() noexcept;
 
+    VulkanShaderModule CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept;
+
 private:
     static inline std::unique_ptr<VulkanShaderSystem> s_pShaderSysInstace = nullptr;
     static inline VkDevice s_pLogicalDevice = VK_NULL_HANDLE;
@@ -119,4 +118,6 @@ private:
     shaderc::Compiler m_compiler;
 
     std::vector<VulkanShaderModuleGroup> m_shaderModuleGroups;
+
+    std::unique_ptr<VulkanShaderCache> m_pShaderCache = nullptr;
 };

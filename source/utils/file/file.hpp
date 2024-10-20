@@ -14,6 +14,17 @@ inline void ForEachSubDirectory(const fs::path &root, const Func &func) noexcept
 
 
 template <typename Func>
+inline void ForEachFileInDirectory(const fs::path &rootDir, const Func &func) noexcept
+{
+    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
+        if (!entry.is_directory()) {
+            func(entry);
+        }
+    }
+}
+
+
+template <typename Func>
 inline void ForEachFileInSubDirectories(const fs::path& rootDir, const Func &func) noexcept
 {
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
