@@ -25,34 +25,34 @@ namespace utils
 
 
 template <typename... Args>
-inline void Logger::Info(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+inline void Logger::Info(Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[(size_t)type] : s_pDefaultLogger;
 
     utils::SpdlogPrint(pLogger, spdlog::level::level_enum::info, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-inline void Logger::Warn(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+inline void Logger::Warn(Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[(size_t)type] : s_pDefaultLogger;
 
     utils::SpdlogPrint(pLogger, spdlog::level::level_enum::warn, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-inline void Logger::Error(LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
+inline void Logger::Error(Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args)
 {
-    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[type] : s_pDefaultLogger;
+    const auto& pLogger = IsInitialized() && IsCustomLogger(type) ? m_loggers[(size_t)type] : s_pDefaultLogger;
 
     utils::SpdlogPrint(pLogger, spdlog::level::level_enum::err, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-inline void LoggerInfo(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
+inline void LoggerInfo(Logger::Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
     if (Logger::IsInitialized()) {
         Logger::Instance()->Info(type, printMessageOnly, file, function, line, additionalInfo, format, std::forward<Args>(args)...);
@@ -63,7 +63,7 @@ inline void LoggerInfo(Logger::LoggerType type, bool printMessageOnly, const cha
 
 
 template <typename... Args>
-inline void LoggerWarn(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
+inline void LoggerWarn(Logger::Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
     std::string message = fmt::format(format, std::forward<Args>(args)...);
     std::string coloredMessage = fmt::format("{}{}{}", AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, message, AM_OUTPUT_COLOR_RESET_ASCII_CODE);
@@ -77,7 +77,7 @@ inline void LoggerWarn(Logger::LoggerType type, bool printMessageOnly, const cha
 
 
 template <typename... Args>
-inline void LoggerError(Logger::LoggerType type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
+inline void LoggerError(Logger::Type type, bool printMessageOnly, const char *file, const char *function, uint32_t line, const char* additionalInfo, const char *format, Args &&...args) noexcept
 {
     std::string message = fmt::format(format, std::forward<Args>(args)...);
 

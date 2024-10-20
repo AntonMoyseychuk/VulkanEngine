@@ -2,6 +2,8 @@
 
 #include "utils/debug/assertion.h"
 
+#include "utils/file/file.h"
+
 #include <vulkan/vulkan.h>
 #include <shaderc/shaderc.hpp>
 

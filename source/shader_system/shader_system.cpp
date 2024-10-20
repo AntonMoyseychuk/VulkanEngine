@@ -2,6 +2,9 @@
 #include "shader_system.h"
 
 #include "config.h"
+
+#include "utils/data_structures/strid.h"
+
 #include "utils/debug/assertion.h"
 #include "utils/file/file.h"
 #include "utils/json/json.h"

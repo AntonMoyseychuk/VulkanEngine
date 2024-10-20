@@ -2,45 +2,42 @@
 
 #include "logger.h"
 
-#include "config.h"
-#include "utils/json/json.h"
+
+using LoggerTypeStrArray = std::array<const char*, (size_t)Logger::Type::COUNT>;
 
 
-static constexpr const char* JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME = "loggers";
-static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME = "name";
-static constexpr const char* JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME = "pattern";
-
-
-Logger::LoggerSystemInitInfo Logger::ParseLoggerSysInitInfoJson(const fs::path &pathToJson) noexcept
+static constexpr const char* LoggerTypeToStr(Logger::Type type) noexcept
 {
-    std::optional<nlohmann::json> jsonOpt = amjson::ParseJson(pathToJson);
-    if (!jsonOpt.has_value()) {
-        return {};
+    switch (type) {
+        case Logger::Type::APPLICATION:
+            return "APP";
+        case Logger::Type::GRAPHICS_API:
+        #if defined(AM_GRAPHICS_API_VULKAN)
+            return "VULKAN";
+        #else
+            #error Currently, only Vulkan is supported
+        #endif
+        case Logger::Type::WINDOW_SYSTEM:
+            return "WINDOW";
+        default:
+            return "INVALID";
     }
-
-    const nlohmann::json& json = jsonOpt.value();
-    
-    const nlohmann::json& loggers = amjson::GetJsonSubNode(json, JSON_LOGGER_CONFIG_LOGGERS_FIELD_NAME);
-    if (loggers.empty()) {
-        AM_LOG_WARN("No custom loggers are specified in the log system configuration json file");
-        return {};
-    }
-
-    LoggerSystemInitInfo info = {};
-    info.infos.reserve(loggers.size());
-    
-    LoggerSystemInitInfo::LoggerInfo loggerInfo = {};
-    for (const auto& logger : loggers.items()) {
-        const nlohmann::json& value = logger.value();
-
-        amjson::GetJsonSubNode(value, JSON_LOGGER_CONFIG_LOGGER_NAME_FIELD_NAME).get_to(loggerInfo.loggerName);
-        amjson::GetJsonSubNode(value, JSON_LOGGER_CONFIG_LOGGER_OUTPUT_PATTERN_FIELD_NAME).get_to(loggerInfo.outputPattern);
-
-        info.infos.emplace_back(loggerInfo);
-    }
-
-    return info;
 }
+
+
+static LoggerTypeStrArray GetLoggerTypeStrs() noexcept
+{
+    LoggerTypeStrArray typeStrs;
+
+    for (size_t type = 0; type < static_cast<size_t>(Logger::Type::COUNT); ++type) {
+        typeStrs[type] = LoggerTypeToStr(static_cast<Logger::Type>(type));
+    }
+
+    return typeStrs;
+}
+
+
+static constexpr const char* AM_LOGGER_PATTERN = "[%^%L%$] [%n] [%H:%M:%S:%e]: %v"; 
 
 
 std::shared_ptr<spdlog::logger> Logger::CreateDefaultSpdlogger() noexcept
@@ -77,9 +74,7 @@ bool Logger::Init()
         return true;
     }
 
-    LoggerSystemInitInfo initInfo = ParseLoggerSysInitInfoJson(paths::AM_LOGGER_CONFIG_FILE_PATH);
-
-    s_pInst = std::unique_ptr<Logger>(new Logger(initInfo));
+    s_pInst = std::unique_ptr<Logger>(new Logger);
 
     return s_pInst != nullptr;
 }
@@ -97,25 +92,22 @@ bool Logger::IsInitialized() noexcept
 }
 
 
-Logger::Logger(const LoggerSystemInitInfo &initInfo)
+Logger::Logger()
 {
-    if (initInfo.infos.empty()) {
-        return;
-    }
-
-    m_loggers.reserve(initInfo.infos.size());
-    for (const LoggerSystemInitInfo::LoggerInfo& info : initInfo.infos) {
-        std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_st(info.loggerName);
-        logger->set_pattern(info.outputPattern);
+    m_loggers.reserve((size_t)Logger::Type::COUNT);
+    
+    for (const char* pLoggerName : GetLoggerTypeStrs()) {
+        std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_st(pLoggerName);
+        logger->set_pattern(AM_LOGGER_PATTERN);
 
         m_loggers.emplace_back(logger);
     }
 }
 
 
-bool Logger::IsCustomLogger(LoggerType type) const noexcept
+bool Logger::IsCustomLogger(Type type) const noexcept
 {
-    return type < m_loggers.size() && m_loggers[type] != nullptr;
+    return (size_t)type < m_loggers.size() && m_loggers[(size_t)type] != nullptr;
 }
 
 

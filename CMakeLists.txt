@@ -65,6 +65,8 @@ if(Vulkan_FOUND)
     message("-- Vulkan_VERSION      = ${Vulkan_VERSION}")
     message("-- Vulkan_INCLUDE_DIRS = ${Vulkan_INCLUDE_DIRS}")
     message("-- Vulkan_LIBRARIES    = ${Vulkan_LIBRARIES}")
+
+    set(AM_GRAPHICS_API AM_GRAPHICS_API_VULKAN)
 else()
     message(FATAL_ERROR "Vulkan not found!")
 endif()
@@ -91,7 +93,6 @@ target_link_libraries(vulkan_sandbox
     PRIVATE nlohmann_json::nlohmann_json
     PRIVATE spdlog::spdlog)
 
-
 target_compile_definitions(vulkan_sandbox 
     PRIVATE AM_PROJECT_SOURCE_DIR="${AM_PROJECT_SOURCE_DIR}"
     PRIVATE AM_PROJECT_SOURCE_CODE_DIR="${AM_PROJECT_SOURCE_CODE_DIR}"
@@ -99,4 +100,4 @@ target_compile_definitions(vulkan_sandbox
     PRIVATE AM_PROJECT_CONFIG_DIR="${AM_PROJECT_CONFIG_DIR}"
     PRIVATE SPDLOG_COMPILED_LIB
     
-    PRIVATE AM_GRAPHICS_API_VULKAN)
+    PRIVATE ${AM_GRAPHICS_API})

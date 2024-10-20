@@ -5,13 +5,13 @@
 #include <cassert>
 
 
-void AssertImpl(bool condition, int loggerType, const char* file, const char* function, uint32_t line, const char* conditionStr, const char* message)
+void AssertImpl(bool condition, Logger::Type loggerType, const char* file, const char* function, uint32_t line, const char* conditionStr, const char* message)
 {
     if (!condition) {
-        const Logger::LoggerType type = static_cast<Logger::LoggerType>(loggerType);
-        assert(type >= 0 && type < Logger::LoggerType_COUNT);
+        const size_t type = static_cast<size_t>(loggerType);
+        assert(type >= 0 && type < static_cast<size_t>(Logger::Type::COUNT));
 
-        LoggerError(type, false, file, function, line, conditionStr, message);
+        LoggerError(loggerType, false, file, function, line, conditionStr, message);
         AM_DEBUG_BREAK();
     }
 }
