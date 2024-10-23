@@ -31,6 +31,12 @@ void ShaderID::ClearDefineBit(size_t index) noexcept
 }
 
 
+void ShaderID::ClearBits() noexcept
+{
+    m_defineBits.reset();
+}
+
+
 bool ShaderID::IsDefineBit(size_t index) const noexcept
 {
     return m_defineBits.test(index);
@@ -42,4 +48,16 @@ uint64_t ShaderID::Hash() const noexcept
     static std::hash<std::bitset<MAX_SHADER_DEFINES_COUNT>> bitsHasher; 
 
     return m_filepath.Hash() ^ (bitsHasher(m_defineBits) << 1);
+}
+
+
+ShaderIDProxy::ShaderIDProxy(const ShaderID &id)
+    : m_hash(id.Hash())
+{
+}
+
+
+ShaderIDProxy::ShaderIDProxy(uint64_t shaderHash)
+    : m_hash(shaderHash)
+{
 }

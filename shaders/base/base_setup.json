@@ -1,0 +1,9 @@
+{
+    "defines": 
+    {    
+        "_DEBUG": {
+            "type": [ "vs", "ps" ],
+            "condition": "true"
+        }
+    }
+}

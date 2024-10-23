@@ -19,6 +19,7 @@ public:
 
     void SetDefineBit(size_t index, bool value = true) noexcept;
     void ClearDefineBit(size_t index) noexcept;
+    void ClearBits() noexcept;
 
     bool IsDefineBit(size_t index) const noexcept;
 
@@ -41,9 +42,37 @@ private:
 };
 
 
+class ShaderIDProxy
+{
+public:
+    ShaderIDProxy() = default;
+    ShaderIDProxy(const ShaderID& id);
+    explicit ShaderIDProxy(uint64_t shaderHash);
+
+    bool IsValid() const noexcept { return m_hash != ShaderID::INVALID_HASH; }
+
+    uint64_t Hash() const noexcept { return m_hash; }
+
+    bool operator==(ShaderIDProxy other) const noexcept { return m_hash == other.m_hash; }
+    bool operator!=(ShaderIDProxy other) const noexcept { return m_hash != other.m_hash; }
+    bool operator<(ShaderIDProxy other) const noexcept  { return m_hash < other.m_hash; }
+    bool operator>(ShaderIDProxy other) const noexcept  { return m_hash > other.m_hash; }
+    bool operator<=(ShaderIDProxy other) const noexcept { return m_hash <= other.m_hash; }
+    bool operator>=(ShaderIDProxy other) const noexcept { return m_hash >= other.m_hash; }
+
+private:
+    uint64_t m_hash = ShaderID::INVALID_HASH;
+};
+
+
 namespace std {
     template<>
     struct hash<ShaderID> {
         uint64_t operator()(const ShaderID& id) const { return id.Hash(); }
+    };
+
+    template<>
+    struct hash<ShaderIDProxy> {
+        uint64_t operator()(const ShaderIDProxy& idProxy) const { return idProxy.Hash(); }
     };
 }

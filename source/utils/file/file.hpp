@@ -2,34 +2,26 @@
 
 
 template <typename Func>
-inline void ForEachSubDirectory(const fs::path &root, const Func &func) noexcept
+inline void ForEachDirectory(const fs::path& rootDir, const Func& func, uint32_t dirTreeDepth) noexcept
 {
-    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(root)) {
+    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
         if (entry.is_directory()) {
-            ForEachSubDirectory(entry.path(), func);
             func(entry);
+
+            if (dirTreeDepth != 0) {
+                ForEachDirectory(entry.path(), func, dirTreeDepth - 1);
+            }
         }
     }
 }
 
 
 template <typename Func>
-inline void ForEachFileInDirectory(const fs::path &rootDir, const Func &func) noexcept
+inline void ForEachFile(const fs::path &rootDir, const Func &func, uint32_t dirTreeDepth) noexcept
 {
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
-        if (!entry.is_directory()) {
-            func(entry);
-        }
-    }
-}
-
-
-template <typename Func>
-inline void ForEachFileInSubDirectories(const fs::path& rootDir, const Func &func) noexcept
-{
-    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
-        if (entry.is_directory()) {
-            ForEachFileInSubDirectories(entry.path(), func);
+        if (entry.is_directory() && (dirTreeDepth != 0)) {
+            ForEachFile(entry.path(), func, dirTreeDepth - 1);
             continue;
         }
         
@@ -39,18 +31,13 @@ inline void ForEachFileInSubDirectories(const fs::path& rootDir, const Func &fun
 
 
 template <typename Func>
-inline std::optional<fs::path> FindFirstFileInSubDirectoriesIf(const fs::path &rootDir, const Func &func) noexcept
+inline std::optional<fs::path> FindFirstFileIf(const fs::path &rootDir, const Func &func, uint32_t dirTreeDepth) noexcept
 {
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(rootDir)) {
-        const fs::path& entryPath = entry.path();
-        
-        if (entry.is_directory()) {
-            ForEachFileInSubDirectories(entryPath, func);
-            continue;
-        }
-        
-        if (func(entry)) {
-            return entryPath;
+        if (!entry.is_directory() && func(entry)) {
+            return entry.path();
+        } else if (entry.is_directory() && (dirTreeDepth != 0)) {
+            return FindFirstFileIf(entry.path(), func, dirTreeDepth - 1);
         }
     }
 
