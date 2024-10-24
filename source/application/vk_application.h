@@ -111,7 +111,7 @@ struct VulkanInstance
     std::vector<char*> validationLayers;
 #endif
 
-#if defined(AM_LOGGING_ENABLED)
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     VkDebugUtilsMessengerEXT pDebugMessenger;
 #endif
 };

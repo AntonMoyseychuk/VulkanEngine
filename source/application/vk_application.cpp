@@ -1496,13 +1496,19 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = shaderSystem.m_shaderModuleGroups[0].modules[VulkanShaderKind_VERTEX].pModule;
+
+    // Temp solution
+    ShaderIDProxy vsIdProxy = ShaderID((paths::AM_PROJECT_SHADERS_DIR_PATH / "base\\base.vs").string(), {});
+    vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo pixShaderStageInfo = {};
     pixShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    pixShaderStageInfo.module = shaderSystem.m_shaderModuleGroups[0].modules[VulkanShaderKind_PIXEL].pModule;
+
+    // Temp solution
+    ShaderIDProxy psIdProxy = ShaderID((paths::AM_PROJECT_SHADERS_DIR_PATH / "base\\base.fs").string(), {});
+    pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
     pixShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, pixShaderStageInfo };

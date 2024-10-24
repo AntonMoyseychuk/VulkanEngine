@@ -38,8 +38,10 @@ public:
 
     VulkanShaderCompiledCodeBuffer GetShaderPrecompiledCode(uint64_t shaderHash) const noexcept;
     VulkanShaderCompiledCodeBuffer GetShaderPrecompiledCode(const ShaderID& id) const noexcept;
-    
+
     void AddCacheEntryToSubmitBuffer(const ShaderID& id, const std::vector<uint8_t>& shaderCompiledCode) noexcept;
+    void AddCacheEntryToSubmitBuffer(const ShaderID& id, const uint8_t* pShaderCompiledCode, size_t codeSize) noexcept;
+    void AddCacheEntryToSubmitBuffer(ShaderIDProxy idProxy, const uint8_t* pShaderCompiledCode, size_t codeSize) noexcept;
 
     void Submit(const fs::path& shaderCacheFilepath) noexcept;
 
@@ -52,17 +54,14 @@ private:
 private:
     std::unordered_map<ShaderIDProxy, VulkanShaderCacheEntryLocation> m_cacheLocations;
     std::vector<uint8_t> m_cacheStorage;
-    
-    std::vector<uint8_t> m_submitBuffer;
-    uint32_t m_submitionCacheEntryCount = 0;
 };
 
 
 template <typename Func>
 inline void VulkanShaderCache::ForEachShaderCacheEntry(Func func) const noexcept
 {
-    for (const VulkanShaderCacheEntryLocation& location : m_cacheLocations) {
-        VulkanShaderCompiledCodeBuffer buffer = GetShaderPrecompiledCode(location);
+    for (const auto& id_Location : m_cacheLocations) {
+        VulkanShaderCompiledCodeBuffer buffer = GetShaderPrecompiledCode(id_Location.second);
         func(buffer);
     }
 }

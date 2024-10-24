@@ -7,5 +7,9 @@ layout(location = 0) out vec4 fs_out_color;
 
 void main()
 {
+#if defined(_DEBUG)
     fs_out_color = fs_in_color;
+#else
+    fs_out_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+#endif
 }

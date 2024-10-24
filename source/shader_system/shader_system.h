@@ -103,13 +103,16 @@ private:
 
     bool IsShaderCacheInitialized() const noexcept;
 
-    void FillVulkanShaderModulesFromCache() noexcept;
     void ClearVulkanShaderModules() noexcept;
 
-    // void CompileShaders() noexcept;
+    void CompileShaders(bool forceRecompile = false) noexcept;
 
-    // void ClearShaderModuleGroups() noexcept;
-    // VulkanShaderModule CreateVulkanShaderModule(const VulkanShaderModuleIntermediateDataConfigInfo& configInfo) noexcept;
+    // Creates shader module from file
+    // Writes compiled code to shader cache
+    bool BuildAndAddShaderModule(const void* pSetup, const ShaderID& shaderId) noexcept;
+
+    // Creates shader module from shader cache
+    bool LoadAndAddShaderModule(const ShaderID& shaderId) noexcept;
 
 private:
     static inline std::unique_ptr<VulkanShaderSystem> s_pShaderSysInstace = nullptr;
@@ -117,8 +120,6 @@ private:
 
 private:
     std::unordered_map<ShaderIDProxy, VkShaderModule> m_shaderModules;
-
-    // std::vector<VulkanShaderModuleGroup> m_shaderModuleGroups;
 
     std::unique_ptr<VulkanShaderCache> m_pShaderCache = nullptr;
 };
