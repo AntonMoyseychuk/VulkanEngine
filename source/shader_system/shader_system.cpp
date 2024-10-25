@@ -520,7 +520,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
         bool newShaderCacheEntry = false;
 
         if (forceRecompile || !LoadAndAddShaderModule(shaderId)) {
-            newShaderCacheEntry = newShaderCacheEntry || BuildAndAddShaderModule(&setup, shaderId);
+            newShaderCacheEntry = BuildAndAddShaderModule(&setup, shaderId) || newShaderCacheEntry;
         }
 
         for (size_t j = 0; j < defines.size(); ++j) {
@@ -530,7 +530,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
                 shaderId.SetDefineBit(k);
 
                 if (forceRecompile || !LoadAndAddShaderModule(shaderId)) {
-                    newShaderCacheEntry = newShaderCacheEntry || BuildAndAddShaderModule(&setup, shaderId);
+                    newShaderCacheEntry = BuildAndAddShaderModule(&setup, shaderId) || newShaderCacheEntry;
                 }
             }
         }
@@ -544,12 +544,10 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
         const VulkanShaderGroupSetup& setup = setups[i];
 
         const auto& vsDefines = setup.GetVSDefines();
-        needToSubmitShaderCache = needToSubmitShaderCache || 
-            CreateAllCombinationsShaderModules(setup, vsDefines, shaderGroupFilepathsList[i].vsFilepath, forceRecompile);
+        needToSubmitShaderCache = CreateAllCombinationsShaderModules(setup, vsDefines, shaderGroupFilepathsList[i].vsFilepath, forceRecompile) || needToSubmitShaderCache;
         
         const auto& psDefines = setup.GetPSDefines();
-        needToSubmitShaderCache = needToSubmitShaderCache || 
-            CreateAllCombinationsShaderModules(setup, psDefines, shaderGroupFilepathsList[i].psFilepath, forceRecompile);
+        needToSubmitShaderCache = CreateAllCombinationsShaderModules(setup, psDefines, shaderGroupFilepathsList[i].psFilepath, forceRecompile) || needToSubmitShaderCache;
     }
 
     if (needToSubmitShaderCache) {
