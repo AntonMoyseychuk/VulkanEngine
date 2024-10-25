@@ -827,6 +827,10 @@ bool VulkanApplication::Init() noexcept
         return true;
     }
 
+    if (!fs::exists(paths::AM_PROJECT_BINARY_DIR_PATH)) {
+        fs::create_directory(paths::AM_PROJECT_BINARY_DIR_PATH);
+    }
+
     std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseVulkanAppInitInfoJson(paths::AM_PROJECT_CONFIG_FILE_PATH);
     if (!appInitInfoOpt.has_value()) {
         return false;

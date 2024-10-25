@@ -409,6 +409,10 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
     s_pLogicalDevice = pLogicalDevice;
 
+    if (!fs::exists(paths::AM_SHADER_CACHE_DIR_PATH)) {
+        fs::create_directory(paths::AM_SHADER_CACHE_DIR_PATH);
+    }
+
     s_pShaderSysInstace = std::unique_ptr<VulkanShaderSystem>(new VulkanShaderSystem);
     if (!s_pShaderSysInstace) {
         AM_ASSERT_GRAPHICS_API(false, "Failed to allocate VulkanShaderSystem");

@@ -9,9 +9,6 @@
 static constexpr size_t AM_SHADER_CACHE_SUBMITION_PREALLOCATION_SIZE = 4 << 20;
 
 
-static const fs::path AM_SHADER_SPIRV_EXTENSION = ".spv";
-
-
 bool VulkanShaderCache::Load(const fs::path& shaderCacheFilepath) noexcept
 {
     // Shader cache structure:
