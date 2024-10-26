@@ -13,6 +13,4 @@ namespace paths
     inline const std::filesystem::path AM_SHADER_CACHE_DIR_PATH         = AM_PROJECT_BINARY_DIR_PATH / "shader_cache";
 
     inline const std::filesystem::path AM_PROJECT_CONFIG_FILE_PATH  = AM_PROJECT_CONFIG_DIR_PATH / "app_config.json";
-    inline const std::filesystem::path AM_VULKAN_CONFIG_FILE_PATH   = AM_PROJECT_CONFIG_DIR_PATH / "vk_config.json";
-    inline const std::filesystem::path AM_LOGGER_CONFIG_FILE_PATH   = AM_PROJECT_CONFIG_DIR_PATH / "logger_config.json";
 }

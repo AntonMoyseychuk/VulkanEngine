@@ -4,9 +4,7 @@
 
 
 int main(int argc, char* argv[])
-{
-    amInitLogSystem();
-    
+{   
     if (!VulkanApplication::Init()) {
         exit(-1);
     }
@@ -15,8 +13,6 @@ int main(int argc, char* argv[])
     instance.Run();
 
     VulkanApplication::Terminate();
-    
-    amTerminateLogSystem();
 
     return 0;
 }

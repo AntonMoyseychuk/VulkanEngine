@@ -32,39 +32,6 @@ struct VulkanAppInitInfo
 };
 
 
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-struct VulkanDebugCallbackInitInfo
-{
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
-    VkDebugUtilsMessageTypeFlagsEXT messageType;
-    PFN_vkDebugUtilsMessengerCallbackEXT pCallback;
-};
-#endif
-
-
-struct VulkanInstanceInitInfo
-{
-    std::vector<std::string> extensionNames;
-    std::vector<std::string> validationLayerNames;
-
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    VulkanDebugCallbackInitInfo debugCallbackInitInfo;
-#endif
-};
-
-
-struct VulkanPhysDeviceInitInfo
-{
-    std::vector<std::string> types;
-};
-
-
-struct VulkanLogicalDeviceInitInfo
-{
-    std::vector<std::string> extensionNames;
-};
-
-
 struct VulkanQueueFamilies
 {
     enum RequiredQueueFamilyType
@@ -90,26 +57,7 @@ struct VulkanQueueFamilies
 
 struct VulkanInstance
 {
-    ~VulkanInstance()
-    {
-        for (const char* extension : extensions) {
-            delete[] extension;
-        }
-
-    #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-        for (const char* layer : validationLayers) {
-            delete[] layer;
-        }
-    #endif
-    }
-
     VkInstance pInstance;
-
-    std::vector<char*> extensions;
-
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    std::vector<char*> validationLayers;
-#endif
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     VkDebugUtilsMessengerEXT pDebugMessenger;
@@ -130,17 +78,9 @@ struct VulkanPhysicalDevice
 
 struct VulkanLogicalDevice
 {
-    ~VulkanLogicalDevice()
-    {
-        for (const char* extension : extensions) {
-            delete[] extension;
-        }
-    }
-
     VkDevice pDevice;
 
     std::vector<VkQueue> queues;
-    std::vector<char*> extensions;
 };
 
 
@@ -209,21 +149,19 @@ private:
     static bool CreateGLFWWindow(const AppWindowInitInfo& initInfo) noexcept;
     static void TerminateGLFWWindow() noexcept;
 
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    static bool InitVulkanDebugCallback(const VulkanDebugCallbackInitInfo& initInfo) noexcept;
+    static bool InitVulkanDebugMessanger(const VkDebugUtilsMessengerCreateInfoEXT& messengerCreateInfo) noexcept;
     static void TerminateVulkanDebugCallback() noexcept;
-#endif
 
-    static bool InitVulkanInstance(const VulkanInstanceInitInfo& initInfo) noexcept;
+    static bool InitVulkanInstance() noexcept;
     static void TerminateVulkanInstance() noexcept;
     
     static bool InitVulkanSurface() noexcept;
     static void TerminateVulkanSurface() noexcept;
 
-    static bool InitVulkanPhysicalDevice(const VulkanPhysDeviceInitInfo& initInfo) noexcept;
+    static bool InitVulkanPhysicalDevice() noexcept;
     static void TerminateVulkanPhysicalDevice() noexcept;
 
-    static bool InitVulkanLogicalDevice(const VulkanLogicalDeviceInitInfo& initInfo) noexcept;
+    static bool InitVulkanLogicalDevice() noexcept;
     static void TerminateVulkanLogicalDevice() noexcept;
 
     static bool InitVulkanSwapChain() noexcept;
@@ -240,9 +178,9 @@ private:
 
     static bool IsGLFWWindowCreated() noexcept;
 
+    static bool IsVulkanDebugMessangerInitialized() noexcept;
     static bool IsVulkanInstanceInitialized() noexcept;
     static bool IsVulkanSurfaceInitialized() noexcept;
-    static bool IsVulkanDebugCallbackInitialized() noexcept;
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
     static bool IsVulkanLogicalDeviceInitialized() noexcept;
     static bool IsVulkanSwapChainInitialized() noexcept;

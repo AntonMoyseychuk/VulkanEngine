@@ -11,63 +11,6 @@
 #include <memory>
 
 
-// enum VulkanShaderKind : uint32_t
-// {
-//     VulkanShaderKind_VERTEX,
-//     VulkanShaderKind_PIXEL,
-//     VulkanShaderKind_COUNT,
-// };
-
-
-// struct VulkanShaderGroupConfigInfo
-// {
-//     std::vector<std::string> defines;
-// };
-
-
-// struct VulkanShaderModuleIntermediateDataConfigInfo
-// {
-//     const VulkanShaderGroupConfigInfo* pGroupConfigInfo;
-//     const fs::path* pFilepath;
-//     VulkanShaderKind kind;
-// };
-
-
-// struct VulkanShaderModule
-// {
-//     bool IsVaild() const noexcept { return kind < VulkanShaderKind_COUNT && pModule != VK_NULL_HANDLE; }
-
-//     VkShaderModule pModule;
-//     VulkanShaderKind kind;
-// };
-
-
-// struct VulkanShaderModuleGroup
-// {
-//     bool AreModulesVaild() const noexcept 
-//     {
-//         for (const VulkanShaderModule& module : modules) {
-//             if (!module.IsVaild()) {
-//                 return false;
-//             }
-//         }
-
-//         return true;
-//     }
-
-//     bool IsModuleValid(VulkanShaderKind kind) const noexcept 
-//     {
-//         AM_ASSERT(kind < VulkanShaderKind_COUNT, "Invalid module kind");
-//         return modules[kind].IsVaild();
-//     }
-
-//     std::array<VulkanShaderModule, VulkanShaderKind_COUNT> modules;
-// };
-
-
-// struct VulkanShaderIntermediateData;
-
-
 class VulkanShaderSystem
 {
     friend class VulkanApplication;

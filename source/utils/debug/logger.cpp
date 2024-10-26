@@ -74,6 +74,8 @@ bool Logger::Init()
         return true;
     }
 
+    s_pDefaultLogger = CreateDefaultSpdlogger();
+
     s_pInst = std::unique_ptr<Logger>(new Logger);
 
     return s_pInst != nullptr;
@@ -82,13 +84,14 @@ bool Logger::Init()
 
 void Logger::Terminate() noexcept
 {
+    s_pDefaultLogger = nullptr;
     s_pInst = nullptr;
 }
 
 
 bool Logger::IsInitialized() noexcept
 {
-    return s_pInst != nullptr;
+    return s_pInst != nullptr && s_pDefaultLogger != nullptr;
 }
 
 
@@ -125,5 +128,15 @@ void amTerminateLogSystem() noexcept
 {
 #if defined(AM_LOGGING_ENABLED)
     Logger::Terminate();
+#endif
+}
+
+
+bool amIsLogSystemInitialized() noexcept
+{
+#if defined(AM_LOGGING_ENABLED)
+    return Logger::IsInitialized();
+#else
+    return true;
 #endif
 }

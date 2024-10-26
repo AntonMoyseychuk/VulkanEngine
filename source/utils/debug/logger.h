@@ -66,7 +66,7 @@ private:
 
 private:
     static inline std::unique_ptr<Logger> s_pInst = nullptr;
-    static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = CreateDefaultSpdlogger();
+    static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = nullptr;
 
 private:
     std::vector<std::shared_ptr<spdlog::logger>> m_loggers;
@@ -88,6 +88,8 @@ inline void LoggerError(Logger::Type type, bool printMessageOnly, const char* fi
 
 void amInitLogSystem() noexcept;
 void amTerminateLogSystem() noexcept;
+
+bool amIsLogSystemInitialized() noexcept;
 
 
 #if defined(AM_LOGGING_ENABLED)
