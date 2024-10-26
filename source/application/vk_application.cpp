@@ -1,7 +1,8 @@
 #include "pch.h"
 #include "vk_application.h"
 
-#include "config.h"
+#include "path_system/path_system.h"
+
 #include "utils/debug/assertion.h"
 #include "utils/json/json.h"
 #include "utils/file/file.h"
@@ -629,17 +630,17 @@ bool VulkanApplication::Init() noexcept
     }
 
     amInitLogSystem();
+    
+    if (!PathSystem::Init()) {
+        return false;
+    }
 
-    std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseAppInitInfoJson(paths::AM_PROJECT_CONFIG_FILE_PATH);
+    std::optional<VulkanAppInitInfo> appInitInfoOpt = ParseAppInitInfoJson(PathSystem::GetProjectConfigFilepath());
     if (!appInitInfoOpt.has_value()) {
         return false;
     }
 
     const VulkanAppInitInfo& appInitInfo = appInitInfoOpt.value();
-
-    if (!fs::exists(paths::AM_PROJECT_BINARY_DIR_PATH)) {
-        fs::create_directory(paths::AM_PROJECT_BINARY_DIR_PATH);
-    }
 
     if (!CreateGLFWWindow(appInitInfo.windowInitInfo)) {
         return false;
@@ -676,7 +677,7 @@ void VulkanApplication::Terminate() noexcept
 
 bool VulkanApplication::IsInitialized() noexcept
 {
-    return amIsLogSystemInitialized() && s_pAppInst && s_pAppInst->IsInstanceInitialized();
+    return amIsLogSystemInitialized() && PathSystem::IsInitialized() && s_pAppInst && s_pAppInst->IsInstanceInitialized();
 }
 
 
@@ -1299,7 +1300,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
     // Temp solution
-    ShaderIDProxy vsIdProxy = ShaderID((paths::AM_PROJECT_SHADERS_DIR_PATH / "base\\base.vs").string(), {});
+    ShaderIDProxy vsIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.vs").string(), {});
     vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
     vertShaderStageInfo.pName = "main";
 
@@ -1308,7 +1309,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     // Temp solution
-    ShaderIDProxy psIdProxy = ShaderID((paths::AM_PROJECT_SHADERS_DIR_PATH / "base\\base.fs").string(), {});
+    ShaderIDProxy psIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.fs").string(), {});
     pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
     pixShaderStageInfo.pName = "main";
 

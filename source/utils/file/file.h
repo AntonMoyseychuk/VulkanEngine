@@ -6,7 +6,7 @@
 
 #include <limits>
 
-namespace fs = std::filesystem;
+#include "path_system/path_system.h"
 
 
 std::vector<char> ReadTextFile(const fs::path& filepath) noexcept;

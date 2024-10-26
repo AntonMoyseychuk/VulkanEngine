@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "shader_system.h"
 
-#include "config.h"
+#include "path_system/path_system.h"
 
 #include "utils/data_structures/strid.h"
 
@@ -27,11 +27,6 @@ static constexpr const char* JSON_SHADER_SETUP_DEFINES_TYPE_PIXEL           = "p
 
 static const fs::path AM_VERTEX_SHADER_EXTENSIONS[] = { ".vs", ".vsh", ".vert", ".glsl" };
 static const fs::path AM_PIXEL_SHADER_EXTENSIONS[]  = { ".ps", ".fs", ".psh", ".frag", ".glsl" };
-
-static const fs::path AM_SHADER_GROUP_SETUP_FILE_EXTENSION = ".json";
-
-
-static const fs::path AM_VULKAN_SHADER_CACHE_FILEPATH = paths::AM_SHADER_CACHE_DIR_PATH / "shader_cache.spv";
 
 
 static constexpr uint32_t AM_VERTEX_SHADER_MASK = 0x1;
@@ -132,7 +127,7 @@ static bool IsPixelShaderFile(const fs::path& filepath) noexcept
 
 static bool IsShaderGroupSetupFile(const fs::path& filepath) noexcept
 {
-    return filepath.extension() == AM_SHADER_GROUP_SETUP_FILE_EXTENSION;
+    return filepath.extension() == ".json";
 }
 
 
@@ -409,10 +404,6 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
     s_pLogicalDevice = pLogicalDevice;
 
-    if (!fs::exists(paths::AM_SHADER_CACHE_DIR_PATH)) {
-        fs::create_directory(paths::AM_SHADER_CACHE_DIR_PATH);
-    }
-
     s_pShaderSysInstace = std::unique_ptr<VulkanShaderSystem>(new VulkanShaderSystem);
     if (!s_pShaderSysInstace) {
         AM_ASSERT_GRAPHICS_API(false, "Failed to allocate VulkanShaderSystem");
@@ -479,7 +470,7 @@ bool VulkanShaderSystem::InitializeShaders() noexcept
 {
     AM_ASSERT(IsShaderCacheInitialized(), "Vulkan shader cache is not initialized");
 
-    const bool isShaderCacheEmpty = !m_pShaderCache->Load(AM_VULKAN_SHADER_CACHE_FILEPATH);
+    const bool isShaderCacheEmpty = !m_pShaderCache->Load(PathSystem::GetProjectShaderCacheFilepath());
     const bool shouldForceCompileShaders = isShaderCacheEmpty;
 
     CompileShaders(shouldForceCompileShaders);
@@ -499,7 +490,7 @@ void VulkanShaderSystem::ClearVulkanShaderModules() noexcept
 
 void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
 {
-    std::vector<VulkanShaderGroupFilepaths> shaderGroupFilepathsList = GetShaderGroupFilepathsList(paths::AM_PROJECT_SHADERS_DIR_PATH);
+    std::vector<VulkanShaderGroupFilepaths> shaderGroupFilepathsList = GetShaderGroupFilepathsList(PathSystem::GetProjectShadersSourceCodeDirectory());
     
     std::vector<VulkanShaderGroupSetup> setups;
     setups.reserve(shaderGroupFilepathsList.size());
@@ -555,7 +546,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     }
 
     if (needToSubmitShaderCache) {
-        m_pShaderCache->Submit(AM_VULKAN_SHADER_CACHE_FILEPATH);
+        m_pShaderCache->Submit(PathSystem::GetProjectShaderCacheFilepath());
     }
 }
 
