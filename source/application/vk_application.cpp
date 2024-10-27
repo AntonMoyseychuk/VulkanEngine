@@ -398,9 +398,11 @@ static uint64_t GetVulkanDeviceTypePriority(VkPhysicalDeviceType type) noexcept
 }
 
 
-static void PrintPhysicalDeviceProperties(const VkPhysicalDeviceProperties& props) noexcept
+static void PrintPhysicalDeviceProperties(const VulkanPhysicalDevice& device) noexcept
 {
 #if defined(AM_LOGGING_ENABLED)
+    const VkPhysicalDeviceProperties& props = device.properties;
+
     const uint32_t deviceID = props.deviceID;
     const char* deviceName = props.deviceName;
 
@@ -426,10 +428,130 @@ static void PrintPhysicalDeviceProperties(const VkPhysicalDeviceProperties& prop
 }
 
 
-static void PrintPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features) noexcept
+static void PrintPhysicalDeviceFeatures(const VulkanPhysicalDevice& device) noexcept
 {
 #if defined(AM_LOGGING_ENABLED)
-    // TODO: implement    
+    const VkPhysicalDeviceFeatures& features = device.features;
+
+    #define MAKE_FEATURE_FORMAT_STR(str) "    - " str ": {}{}" AM_OUTPUT_COLOR_RESET_ASCII_CODE ";\n"
+
+    constexpr const char* format = "Device {} features:\n"
+        MAKE_FEATURE_FORMAT_STR("Robust Buffer Access")
+        MAKE_FEATURE_FORMAT_STR("Full Draw Index Uint32")
+        MAKE_FEATURE_FORMAT_STR("Image Cube Array")
+        MAKE_FEATURE_FORMAT_STR("Independent Blend")
+        MAKE_FEATURE_FORMAT_STR("Geometry Shader Support")
+        MAKE_FEATURE_FORMAT_STR("Tessellation Shader Support")
+        MAKE_FEATURE_FORMAT_STR("Sample Rate Shading")
+        MAKE_FEATURE_FORMAT_STR("Dual Src Blend")
+        MAKE_FEATURE_FORMAT_STR("Logic Op")
+        MAKE_FEATURE_FORMAT_STR("Multi Draw Indirect")
+        MAKE_FEATURE_FORMAT_STR("Draw Indirect First Instance")
+        MAKE_FEATURE_FORMAT_STR("Depth Clamp")
+        MAKE_FEATURE_FORMAT_STR("Depth Bias Clamp")
+        MAKE_FEATURE_FORMAT_STR("Fill Mode Non Solid")
+        MAKE_FEATURE_FORMAT_STR("Depth Bounds")
+        MAKE_FEATURE_FORMAT_STR("Wide Lines")
+        MAKE_FEATURE_FORMAT_STR("Large Points")
+        MAKE_FEATURE_FORMAT_STR("Alpha To One")
+        MAKE_FEATURE_FORMAT_STR("Multi Viewport")
+        MAKE_FEATURE_FORMAT_STR("Sampler Anisotropy")
+        MAKE_FEATURE_FORMAT_STR("Texture Compression ETC2")
+        MAKE_FEATURE_FORMAT_STR("Texture Compression ASTC_LDR")
+        MAKE_FEATURE_FORMAT_STR("Texture Compression BC")
+        MAKE_FEATURE_FORMAT_STR("Occlusion Query Precise")
+        MAKE_FEATURE_FORMAT_STR("Vertex Pipeline Stores And Atomics")
+        MAKE_FEATURE_FORMAT_STR("Fragment Stores And Atomics")
+        MAKE_FEATURE_FORMAT_STR("Shader Tessellation And Geometry Point Size")
+        MAKE_FEATURE_FORMAT_STR("Shader Image Gather Extended")
+        MAKE_FEATURE_FORMAT_STR("Shader Storage Image Extended Formats")
+        MAKE_FEATURE_FORMAT_STR("Shader Storage Image Multisample")
+        MAKE_FEATURE_FORMAT_STR("Shader Storage Image Read Without Format")
+        MAKE_FEATURE_FORMAT_STR("Shader Storage Image Write Without Format")
+        MAKE_FEATURE_FORMAT_STR("Shader Uniform Buffer Array Dynamic Indexing")
+        MAKE_FEATURE_FORMAT_STR("Shader Sampled Image Array Dynamic Indexing")
+        MAKE_FEATURE_FORMAT_STR("Shader Storage Image Array Dynamic Indexing")
+        MAKE_FEATURE_FORMAT_STR("Shader Clip Distance")
+        MAKE_FEATURE_FORMAT_STR("Shader Cull Distance")
+        MAKE_FEATURE_FORMAT_STR("Shader Float64")
+        MAKE_FEATURE_FORMAT_STR("Shader Int64")
+        MAKE_FEATURE_FORMAT_STR("Shader Int16")
+        MAKE_FEATURE_FORMAT_STR("Shader Resource Residency")
+        MAKE_FEATURE_FORMAT_STR("Shader Resource Min Lod")
+        MAKE_FEATURE_FORMAT_STR("Sparse Binding")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency Buffer")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency Image2D")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency Image3D")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency 2 Samples")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency 4 Samples")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency 8 Samples")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency 16 Samples")
+        MAKE_FEATURE_FORMAT_STR("Sparse Residency Aliased")
+        MAKE_FEATURE_FORMAT_STR("Variable Multisample Rate")
+        MAKE_FEATURE_FORMAT_STR("Inherited Queries");
+
+    #undef MAKE_FEATURE_FORMAT_STR
+
+    #define MAKE_BOOL_COLORED_STR(value) (value) ? AM_OUTPUT_COLOR_GREEN_ASCII_CODE : AM_OUTPUT_COLOR_RED_ASCII_CODE, (value) ? "true" : "false"
+
+    AM_LOG_GRAPHICS_API_INFO(format, device.properties.deviceID,
+        MAKE_BOOL_COLORED_STR(features.robustBufferAccess),
+        MAKE_BOOL_COLORED_STR(features.fullDrawIndexUint32),
+        MAKE_BOOL_COLORED_STR(features.imageCubeArray),
+        MAKE_BOOL_COLORED_STR(features.independentBlend),
+        MAKE_BOOL_COLORED_STR(features.geometryShader),
+        MAKE_BOOL_COLORED_STR(features.tessellationShader),
+        MAKE_BOOL_COLORED_STR(features.sampleRateShading),
+        MAKE_BOOL_COLORED_STR(features.dualSrcBlend),
+        MAKE_BOOL_COLORED_STR(features.logicOp),
+        MAKE_BOOL_COLORED_STR(features.multiDrawIndirect),
+        MAKE_BOOL_COLORED_STR(features.drawIndirectFirstInstance),
+        MAKE_BOOL_COLORED_STR(features.depthClamp),
+        MAKE_BOOL_COLORED_STR(features.depthBiasClamp),
+        MAKE_BOOL_COLORED_STR(features.fillModeNonSolid),
+        MAKE_BOOL_COLORED_STR(features.depthBounds),
+        MAKE_BOOL_COLORED_STR(features.wideLines),
+        MAKE_BOOL_COLORED_STR(features.largePoints),
+        MAKE_BOOL_COLORED_STR(features.alphaToOne),
+        MAKE_BOOL_COLORED_STR(features.multiViewport),
+        MAKE_BOOL_COLORED_STR(features.samplerAnisotropy),
+        MAKE_BOOL_COLORED_STR(features.textureCompressionETC2),
+        MAKE_BOOL_COLORED_STR(features.textureCompressionBC),
+        MAKE_BOOL_COLORED_STR(features.occlusionQueryPrecise),
+        MAKE_BOOL_COLORED_STR(features.pipelineStatisticsQuery),
+        MAKE_BOOL_COLORED_STR(features.vertexPipelineStoresAndAtomics),
+        MAKE_BOOL_COLORED_STR(features.fragmentStoresAndAtomics),
+        MAKE_BOOL_COLORED_STR(features.shaderTessellationAndGeometryPointSize),
+        MAKE_BOOL_COLORED_STR(features.shaderImageGatherExtended),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageImageExtendedFormats),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageImageMultisample),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageImageReadWithoutFormat),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageImageWriteWithoutFormat),
+        MAKE_BOOL_COLORED_STR(features.shaderUniformBufferArrayDynamicIndexing),
+        MAKE_BOOL_COLORED_STR(features.shaderSampledImageArrayDynamicIndexing),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageBufferArrayDynamicIndexing),
+        MAKE_BOOL_COLORED_STR(features.shaderStorageImageArrayDynamicIndexing),
+        MAKE_BOOL_COLORED_STR(features.shaderClipDistance),
+        MAKE_BOOL_COLORED_STR(features.shaderCullDistance),
+        MAKE_BOOL_COLORED_STR(features.shaderFloat64),
+        MAKE_BOOL_COLORED_STR(features.shaderInt64),
+        MAKE_BOOL_COLORED_STR(features.shaderInt16),
+        MAKE_BOOL_COLORED_STR(features.shaderResourceResidency),
+        MAKE_BOOL_COLORED_STR(features.shaderResourceMinLod),
+        MAKE_BOOL_COLORED_STR(features.sparseBinding),
+        MAKE_BOOL_COLORED_STR(features.sparseResidencyBuffer),
+        MAKE_BOOL_COLORED_STR(features.sparseResidencyImage2D),
+        MAKE_BOOL_COLORED_STR(features.sparseResidencyImage3D),
+        MAKE_BOOL_COLORED_STR(features.sparseResidency2Samples),
+        MAKE_BOOL_COLORED_STR(features.sparseResidency4Samples),
+        MAKE_BOOL_COLORED_STR(features.sparseResidency8Samples),
+        MAKE_BOOL_COLORED_STR(features.sparseResidency16Samples),
+        MAKE_BOOL_COLORED_STR(features.sparseResidencyAliased),
+        MAKE_BOOL_COLORED_STR(features.variableMultisampleRate),
+        MAKE_BOOL_COLORED_STR(features.inheritedQueries)
+    );
+
+    #undef MAKE_BOOL_COLORED_STR
 #endif
 }
 
@@ -484,10 +606,10 @@ static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPh
     device.pDevice = pPhysicalDevice;
 
     vkGetPhysicalDeviceProperties(pPhysicalDevice, &device.properties);
-    PrintPhysicalDeviceProperties(device.properties);
+    PrintPhysicalDeviceProperties(device);
     
     vkGetPhysicalDeviceFeatures(pPhysicalDevice, &device.features);
-    PrintPhysicalDeviceFeatures(device.features);
+    PrintPhysicalDeviceFeatures(device);
 
     device.queueFamilies = FindRequiredVulkanQueueFamilies(pPhysicalDevice, pSurface);
 
