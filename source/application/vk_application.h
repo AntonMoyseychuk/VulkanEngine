@@ -107,7 +107,7 @@ struct VulkanSwapChain
 {
     VulkanSwapChainDesc      desc;
     std::vector<VkImage>     images;
-    std::vector<VkImageView> swapChainImageViews;
+    std::vector<VkImageView> imageViews;
     VkSwapchainKHR           pSwapChain;
 };
 
@@ -122,6 +122,23 @@ struct VulkanGraphicsPipeline
 {
     VkPipelineLayout pLayout;
     VkPipeline pPipeline;
+};
+
+
+struct VulkanFramebuffers
+{
+    bool IsValid() const noexcept
+    {
+        for (const VkFramebuffer& framebuffer : framebuffers) {
+            if (framebuffer == VK_NULL_HANDLE) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    std::vector<VkFramebuffer> framebuffers;
 };
 
 
@@ -173,6 +190,9 @@ private:
     static bool InitVulkanGraphicsPipeline() noexcept;
     static void TerminateVulkanGraphicsPipeline() noexcept;
 
+    static bool InitVulkanFramebuffers() noexcept;
+    static void TerminateVulkanFramebuffers() noexcept;
+
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
@@ -186,6 +206,7 @@ private:
     static bool IsVulkanSwapChainInitialized() noexcept;
     static bool IsVulkanRenderPassInitialized() noexcept;
     static bool IsVulkanGraphicsPipelineInitialized() noexcept;
+    static bool IsVulkanFramebuffersInitialized() noexcept;
     
     static bool IsVulkanInitialized() noexcept;
 
@@ -206,6 +227,7 @@ private:
         VulkanSwapChain         swapChain;
         VulkanRenderPass        renderPass;
         VulkanGraphicsPipeline  graphicsPipeline;
+        VulkanFramebuffers      framebuffers;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 

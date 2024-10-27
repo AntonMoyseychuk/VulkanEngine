@@ -1158,7 +1158,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     swapChainDesc.currExtent = extent;
     swapChainDesc.currFormat = surfaceFormat.format;
 
-    std::vector<VkImageView>& swapChainImageViews = s_pVulkanState->swapChain.swapChainImageViews;
+    std::vector<VkImageView>& swapChainImageViews = s_pVulkanState->swapChain.imageViews;
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImageViews.size(); ++i) {
@@ -1192,7 +1192,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
 void VulkanApplication::TerminateVulkanSwapChain() noexcept
 {
     if (s_pVulkanState) {
-        for (VkImageView& imageView : s_pVulkanState->swapChain.swapChainImageViews) {
+        for (VkImageView& imageView : s_pVulkanState->swapChain.imageViews) {
             vkDestroyImageView(s_pVulkanState->logicalDevice.pDevice, imageView, nullptr);
         }
 
@@ -1456,6 +1456,75 @@ void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
 }
 
 
+bool VulkanApplication::InitVulkanFramebuffers() noexcept
+{
+    if (IsVulkanFramebuffersInitialized()) {
+        AM_LOG_WARN("Vulkan framebuffers are already initialized");
+        return true;
+    }
+
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan logical device must be initialized before framebuffers initialization");
+        return false;
+    }
+
+    if (!IsVulkanSwapChainInitialized()) {
+        AM_ASSERT(false, "Vulkan swap chain must be initialized before framebuffers initialization");
+        return false;
+    }
+
+    if (!IsVulkanRenderPassInitialized()) {
+        AM_ASSERT(false, "Vulkan render pass must be initialized before framebuffers initialization");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan framebuffers..."));
+
+    const VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
+    const std::vector<VkImageView>& swapChainImageViews = swapChain.imageViews;
+    const size_t swapChainImageViewsCount = swapChainImageViews.size();
+
+    AM_ASSERT_GRAPHICS_API(swapChainImageViewsCount > 0, "There is no any image views in swap chain");
+
+    std::vector<VkFramebuffer>& framebuffers = s_pVulkanState->framebuffers.framebuffers;
+    framebuffers.resize(swapChainImageViewsCount);
+
+    for (size_t i = 0; i < swapChainImageViewsCount; ++i) {
+        VkImageView imageViewAttachments[] = {
+            swapChainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferCreateInfo = {};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = s_pVulkanState->renderPass.pRenderPass;
+        framebufferCreateInfo.attachmentCount = _countof(imageViewAttachments);
+        framebufferCreateInfo.pAttachments = imageViewAttachments;
+        framebufferCreateInfo.width = swapChain.desc.currExtent.width;
+        framebufferCreateInfo.height = swapChain.desc.currExtent.height;
+        framebufferCreateInfo.layers = _countof(imageViewAttachments);
+
+        if (vkCreateFramebuffer(s_pVulkanState->logicalDevice.pDevice, &framebufferCreateInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
+            AM_ASSERT_GRAPHICS_API(false, "Vulkan framebuffers creation failed");
+            return false;
+        }
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan framebuffers initialization finished"));
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanFramebuffers() noexcept
+{
+    if (s_pVulkanState) {
+        for (VkFramebuffer& pFramebuffer : s_pVulkanState->framebuffers.framebuffers) {
+            vkDestroyFramebuffer(s_pVulkanState->logicalDevice.pDevice, pFramebuffer, nullptr);
+        }
+    }
+}
+
+
 bool VulkanApplication::InitVulkan() noexcept
 {
     using namespace amjson;
@@ -1501,6 +1570,10 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
+    if (!InitVulkanFramebuffers()) {
+        return false;
+    }
+
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished"));
 
     return true;
@@ -1509,6 +1582,7 @@ bool VulkanApplication::InitVulkan() noexcept
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+    TerminateVulkanFramebuffers();
     TerminateVulkanGraphicsPipeline();
     TerminateVulkanRenderPass();
     TerminateVulkanSwapChain();
@@ -1575,11 +1649,11 @@ bool VulkanApplication::IsVulkanSwapChainInitialized() noexcept
         return false;
     }
 
-    if (swapChain.swapChainImageViews.size() != swapChain.images.size() || swapChain.swapChainImageViews.empty()) {
+    if (swapChain.imageViews.size() != swapChain.images.size() || swapChain.imageViews.empty()) {
         return false;
     }
 
-    for (const VkImageView& imageView : swapChain.swapChainImageViews) {
+    for (const VkImageView& imageView : swapChain.imageViews) {
         if (imageView == VK_NULL_HANDLE) {
             return false;
         }
@@ -1600,6 +1674,12 @@ bool VulkanApplication::IsVulkanGraphicsPipelineInitialized() noexcept
     return s_pVulkanState 
         && s_pVulkanState->graphicsPipeline.pLayout != VK_NULL_HANDLE
         && s_pVulkanState->graphicsPipeline.pPipeline != VK_NULL_HANDLE;
+}
+
+
+bool VulkanApplication::IsVulkanFramebuffersInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->framebuffers.IsValid();
 }
 
 
