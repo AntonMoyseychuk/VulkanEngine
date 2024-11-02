@@ -563,7 +563,7 @@ static VulkanQueueFamilies FindRequiredVulkanQueueFamilies(VkPhysicalDevice pPhy
         return {};
     }
 
-    VulkanQueueFamilies result = {};
+    VulkanQueueFamilies result;
 
     uint32_t familiesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(pPhysicalDevice, &familiesCount, nullptr);
@@ -730,9 +730,13 @@ VulkanQueueFamilies::VulkanQueueFamilies()
 
 bool VulkanQueueFamilies::IsComplete() const noexcept
 {
-    return std::find_if(families.cbegin(), families.cend(), [](const auto& desc) {
-        return !desc.index.has_value();
-    }) == families.cend();
+    for (const QueueFamily& family : families) {
+        if (!family.index.has_value()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -807,7 +811,10 @@ void VulkanApplication::Run() noexcept
 {
     while(!glfwWindowShouldClose(s_pGLFWWindow)) {
         glfwPollEvents();
+        RenderFrame();
     }
+
+    vkDeviceWaitIdle(s_pVulkanState->logicalDevice.pDevice);
 }
 
 
@@ -918,7 +925,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
     #endif
     };
-
+    
     instCreateInfo.ppEnabledExtensionNames = vulkanInstanceExtensions;
     instCreateInfo.enabledExtensionCount = _countof(vulkanInstanceExtensions);
     
@@ -1085,6 +1092,8 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
     s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Picked {} physical device\n"), s_pVulkanState->physicalDevice.properties.deviceName);
+    
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan physical device initialization finished"));
     return true;
 }
@@ -1369,6 +1378,17 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
     VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
     VkRenderPass& pRenderPass = s_pVulkanState->renderPass.pRenderPass;
 
+    VkSubpassDependency subpassDependency = {};
+    subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpassDependency.dstSubpass = 0;
+    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.srcAccessMask = 0;
+    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    renderPassCreateInfo.dependencyCount = 1;
+    renderPassCreateInfo.pDependencies = &subpassDependency;
+
     if (vkCreateRenderPass(pLogicalDevice, &renderPassCreateInfo, nullptr, &pRenderPass) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API(false, "Vulkan render pass creation failed");
         return false;
@@ -1561,6 +1581,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
         return false;
     }
 
+
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan graphics pipeline initialization finished"));
 
     return true;
@@ -1647,10 +1668,148 @@ void VulkanApplication::TerminateVulkanFramebuffers() noexcept
 }
 
 
+bool VulkanApplication::InitVulkanCommandPool() noexcept
+{
+    if (IsVulkanCommandPoolInitialized()) {
+        AM_LOG_WARN("Vulkan command pool are already initialized");
+        return true;
+    }
+
+    if (!IsVulkanPhysicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan physical device must be initialized before command pool initialization");
+        return false;
+    }
+
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT(false, "Vulkan logical device must be initialized before command pool initialization");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan command pool..."));
+
+    const VulkanQueueFamilies& queueFamilies = s_pVulkanState->physicalDevice.queueFamilies;
+    VkDevice& pDevice = s_pVulkanState->logicalDevice.pDevice;
+
+    VkCommandPool& pCommandPool = s_pVulkanState->commandPool.pPool;
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = queueFamilies.families[VulkanQueueFamilies::RequiredQueueFamilyType_GRAPHICS].index.value();
+
+    if (vkCreateCommandPool(pDevice, &commandPoolCreateInfo, nullptr, &pCommandPool) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan command pool creation failed");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan command pool initialization finished"));
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan command buffer..."));
+
+    VkCommandBuffer& pCommandBuf = s_pVulkanState->commandPool.pCommandBuffer;
+
+    VkCommandBufferAllocateInfo commandBufAllocateInfo = {};
+    commandBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufAllocateInfo.commandPool = pCommandPool;
+    commandBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufAllocateInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(pDevice, &commandBufAllocateInfo, &pCommandBuf) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan command buffer allocation failed");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan command buffer initialization finished"));
+
+    return true;
+}
+
+
+void VulkanApplication::ResetCommandBuffer() noexcept
+{
+    if (!IsVulkanCommandBufferInitialized()) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan command buffer must be initialized before resetting");
+        return;
+    }
+
+    vkResetCommandBuffer(s_pVulkanState->commandPool.pCommandBuffer, 0);   
+}
+
+
+void VulkanApplication::TerminateCommandPool() noexcept
+{
+    if (s_pVulkanState) {
+        vkDestroyCommandPool(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->commandPool.pPool, nullptr);
+    }
+}
+
+
+bool VulkanApplication::InitVulkanSyncObjects() noexcept
+{
+    if (IsVulkanSyncObjectsInitialized()) {
+        AM_LOG_WARN("Vulkan sync objects are already initialized");
+        return true;
+    }
+
+    if (!IsVulkanInstanceInitialized()) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan instance must be initialized before sync objects initialization");
+        return false;
+    }
+
+    if (!IsVulkanLogicalDeviceInitialized()) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device be initialized before sync objects initialization");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan sync objects..."));
+
+    VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+
+    if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pImageAvailableSemaphore) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Image available semaphore creation failed");
+        return false;
+    }
+
+    if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pRenderFinishedSemaphore) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Render finished semaphore creation failed");
+        return false;
+    }
+
+    VkFenceCreateInfo fenceCreateInfo = {};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateFence(pLogicalDevice, &fenceCreateInfo, nullptr, &syncObjects.pInFlightFence) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "In flight fence creation failed");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan sync objects initialization finished"));
+
+    return true;
+}
+
+
+void VulkanApplication::TerminateSyncObjects() noexcept
+{
+    if (s_pVulkanState) {
+        VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+        VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
+
+        vkDestroyFence(pLogicalDevice, syncObjects.pInFlightFence, nullptr);
+        vkDestroySemaphore(pLogicalDevice, syncObjects.pRenderFinishedSemaphore, nullptr);
+        vkDestroySemaphore(pLogicalDevice, syncObjects.pImageAvailableSemaphore, nullptr);
+    }
+}
+
+
 bool VulkanApplication::InitVulkan() noexcept
 {
-    using namespace amjson;
-
     if (IsVulkanInitialized()) {
         AM_LOG_WARN("Vulkan is already initialized");
         return true;
@@ -1696,6 +1855,14 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
+    if (!InitVulkanCommandPool()) {
+        return false;
+    }
+
+    if (!InitVulkanSyncObjects()) {
+        return false;
+    }
+
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished"));
 
     return true;
@@ -1704,6 +1871,8 @@ bool VulkanApplication::InitVulkan() noexcept
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+    TerminateSyncObjects();
+    TerminateCommandPool();
     TerminateVulkanFramebuffers();
     TerminateVulkanGraphicsPipeline();
     TerminateVulkanRenderPass();
@@ -1805,6 +1974,24 @@ bool VulkanApplication::IsVulkanFramebuffersInitialized() noexcept
 }
 
 
+bool VulkanApplication::IsVulkanCommandPoolInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->commandPool.pPool != VK_NULL_HANDLE && IsVulkanCommandBufferInitialized();
+}
+
+
+bool VulkanApplication::IsVulkanCommandBufferInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->commandPool.pCommandBuffer != VK_NULL_HANDLE;;
+}
+
+
+bool VulkanApplication::IsVulkanSyncObjectsInitialized() noexcept
+{
+    return s_pVulkanState && s_pVulkanState->syncObjects.IsValid();
+}
+
+
 bool VulkanApplication::IsVulkanInitialized() noexcept
 {
     return IsVulkanInstanceInitialized()  
@@ -1813,11 +2000,165 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
         && IsVulkanLogicalDeviceInitialized()
         && IsVulkanSwapChainInitialized()
         && IsVulkanRenderPassInitialized()
-        && IsVulkanGraphicsPipelineInitialized();
+        && IsVulkanGraphicsPipelineInitialized()
+        && IsVulkanFramebuffersInitialized()
+        && IsVulkanCommandPoolInitialized()
+        && IsVulkanSyncObjectsInitialized();
 }
 
 
-VulkanApplication::VulkanApplication(const VulkanAppInitInfo &appInitInfo)
+bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uint32_t imageIndex) noexcept
+{
+    if (!IsVulkanSwapChainInitialized()) {
+        AM_ASSERT(false, "Vulkan swap chain must be initialized before command buffer recording");
+        return false;
+    }
+
+    if (!IsVulkanRenderPassInitialized()) {
+        AM_ASSERT(false, "Vulkan render pass must be initialized before command buffer recording");
+        return false;
+    }
+
+    if (!IsVulkanGraphicsPipelineInitialized()) {
+        AM_ASSERT(false, "Vulkan graphics pipeline must be initialized before command buffer recording");
+        return false;
+    }
+
+    if (!IsVulkanFramebuffersInitialized()) {
+        AM_ASSERT(false, "Vulkan framebuffers must be initialized before command buffer recording");
+        return false;
+    }
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo = {};
+    commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    commandBufferBeginInfo.pInheritanceInfo = nullptr;
+    commandBufferBeginInfo.flags = 0;
+
+    if (vkBeginCommandBuffer(pCommandBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Failed to begin command buffer");
+        return false;
+    }
+
+    const VkExtent2D& swapChainExtent = s_pVulkanState->swapChain.desc.currExtent;
+
+    VkRenderPassBeginInfo renderPassBeginInfo = {};
+    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassBeginInfo.framebuffer = s_pVulkanState->framebuffers.framebuffers[imageIndex];
+    renderPassBeginInfo.renderPass = s_pVulkanState->renderPass.pRenderPass;
+    renderPassBeginInfo.renderArea.offset = { 0, 0 };
+    renderPassBeginInfo.renderArea.extent = swapChainExtent;
+    
+    VkClearValue clearValues[] = {
+        {{{0.0f, 0.0f, 0.0f, 1.0f}}}
+    };
+    renderPassBeginInfo.pClearValues = clearValues;
+    renderPassBeginInfo.clearValueCount = _countof(clearValues);
+
+    vkCmdBeginRenderPass(pCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(pCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pVulkanState->graphicsPipeline.pPipeline);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChainExtent.width);
+    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(pCommandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainExtent;
+    vkCmdSetScissor(pCommandBuffer, 0, 1, &scissor);
+
+    vkCmdDraw(pCommandBuffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(pCommandBuffer);
+
+    if (vkEndCommandBuffer(pCommandBuffer) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Failed to end command buffer");
+        return false;
+    }
+
+    return true;
+}
+
+
+void VulkanApplication::RenderFrame() noexcept
+{
+    if (!IsVulkanInitialized()) {
+        AM_ASSERT_GRAPHICS_API(false, "Vulkan must be initialized before rendering");
+        return;
+    }
+
+    VulkanLogicalDevice& logicalDevice = s_pVulkanState->logicalDevice;
+    VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
+    VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
+    VulkanCommandPool& commandPool = s_pVulkanState->commandPool;
+
+    vkWaitForFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence);
+
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(logicalDevice.pDevice, swapChain.pSwapChain, UINT64_MAX, 
+        syncObjects.pImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+    ResetCommandBuffer();
+    if (!RecordCommandBuffer(commandPool.pCommandBuffer, imageIndex)) {
+        return;
+    }
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = { 
+        syncObjects.pImageAvailableSemaphore
+    };
+
+    VkPipelineStageFlags waitStages[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+
+    submitInfo.waitSemaphoreCount = _countof(waitSemaphores);
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    VkCommandBuffer commandBuffers[] = {
+        commandPool.pCommandBuffer
+    };
+    submitInfo.pCommandBuffers = commandBuffers;
+    submitInfo.commandBufferCount = _countof(commandBuffers);
+
+    VkSemaphore signalSemaphores[] = {
+        syncObjects.pRenderFinishedSemaphore
+    };
+    submitInfo.signalSemaphoreCount = _countof(signalSemaphores);
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(logicalDevice.queues[VulkanQueueFamilies::RequiredQueueFamilyType_GRAPHICS], 1, &submitInfo, syncObjects.pInFlightFence) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API(false, "Failed to submit render queue");
+        return;
+    }
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = _countof(signalSemaphores);
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {
+        swapChain.pSwapChain
+    };
+    presentInfo.swapchainCount = _countof(swapChains);
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr;
+
+    vkQueuePresentKHR(logicalDevice.queues[VulkanQueueFamilies::RequiredQueueFamilyType_PRESENT], &presentInfo);
+}
+
+
+VulkanApplication::VulkanApplication(const VulkanAppInitInfo& appInitInfo)
 {
     
 }
@@ -1832,4 +2173,20 @@ bool VulkanApplication::IsInstanceInitialized() const noexcept
 VulkanApplication::~VulkanApplication()
 {
     
+}
+
+
+bool VulkanFramebuffers::IsValid() const noexcept
+{
+    if (framebuffers.empty()) {
+        return false;
+    }
+
+    for (const VkFramebuffer& framebuffer : framebuffers) {
+        if (framebuffer == VK_NULL_HANDLE) {
+            return false;
+        }
+    }
+
+    return true;
 }

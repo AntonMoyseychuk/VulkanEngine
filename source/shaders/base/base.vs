@@ -4,9 +4,9 @@ layout(location = 0) out vec4 vs_out_color;
 
 
 vec2 g_positions[3] = vec2[](
-    vec2(0.0f, -0.5f),
-    vec2(-0.0f, 0.5f),
-    vec2(0.5f, 0.5f)
+    vec2( 0.0f, -0.5f),
+    vec2( 0.5f,  0.5f),
+    vec2(-0.5f,  0.5f)
 );
 
 

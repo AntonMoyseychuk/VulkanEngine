@@ -127,18 +127,31 @@ struct VulkanGraphicsPipeline
 
 struct VulkanFramebuffers
 {
-    bool IsValid() const noexcept
-    {
-        for (const VkFramebuffer& framebuffer : framebuffers) {
-            if (framebuffer == VK_NULL_HANDLE) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    bool IsValid() const noexcept;
 
     std::vector<VkFramebuffer> framebuffers;
+};
+
+
+struct VulkanCommandPool
+{
+    VkCommandPool pPool;
+    VkCommandBuffer pCommandBuffer;
+};
+
+
+struct VulkanSyncObjects
+{
+    bool IsValid() const noexcept 
+    { 
+        return pImageAvailableSemaphore != VK_NULL_HANDLE && 
+            pImageAvailableSemaphore != VK_NULL_HANDLE && 
+            pImageAvailableSemaphore != VK_NULL_HANDLE;
+    }
+
+    VkSemaphore pImageAvailableSemaphore;
+    VkSemaphore pRenderFinishedSemaphore;
+    VkFence     pInFlightFence;
 };
 
 
@@ -193,6 +206,13 @@ private:
     static bool InitVulkanFramebuffers() noexcept;
     static void TerminateVulkanFramebuffers() noexcept;
 
+    static bool InitVulkanCommandPool() noexcept;
+    static void ResetCommandBuffer() noexcept;
+    static void TerminateCommandPool() noexcept;
+
+    static bool InitVulkanSyncObjects() noexcept;
+    static void TerminateSyncObjects() noexcept;
+
     static bool InitVulkan() noexcept;
     static void TerminateVulkan() noexcept;
 
@@ -207,8 +227,15 @@ private:
     static bool IsVulkanRenderPassInitialized() noexcept;
     static bool IsVulkanGraphicsPipelineInitialized() noexcept;
     static bool IsVulkanFramebuffersInitialized() noexcept;
+    static bool IsVulkanCommandPoolInitialized() noexcept;
+    static bool IsVulkanCommandBufferInitialized() noexcept;
+    static bool IsVulkanSyncObjectsInitialized() noexcept;
     
     static bool IsVulkanInitialized() noexcept;
+
+    bool RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uint32_t imageIndex) noexcept;
+
+    void RenderFrame() noexcept;
 
 private:
     VulkanApplication(const VulkanAppInitInfo& appInitInfo);
@@ -228,6 +255,8 @@ private:
         VulkanRenderPass        renderPass;
         VulkanGraphicsPipeline  graphicsPipeline;
         VulkanFramebuffers      framebuffers;
+        VulkanCommandPool       commandPool;
+        VulkanSyncObjects       syncObjects;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 
