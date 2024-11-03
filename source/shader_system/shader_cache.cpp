@@ -85,14 +85,14 @@ VulkanShaderCompiledCodeBuffer VulkanShaderCache::GetShaderPrecompiledCode(uint6
     const auto codeLocation = m_cacheLocations.find(idProxy);
 
     if (codeLocation == m_cacheLocations.cend()) {
-        AM_ASSERT_GRAPHICS_API(false, "Invalid shader id");
+        AM_ASSERT_GRAPHICS_API_FAIL("Invalid shader id");
         return {};
     }
 
     const VulkanShaderCacheEntryLocation& cacheLocation = codeLocation->second;
 
     if (cacheLocation.beginPosition + cacheLocation.sizeInU8 > m_cacheStorage.size()) {
-        AM_ASSERT_GRAPHICS_API(false, "Invalid shader cache buffer position + size");
+        AM_ASSERT_GRAPHICS_API_FAIL("Invalid shader cache buffer position + size");
         return {};
     }
 
@@ -100,7 +100,7 @@ VulkanShaderCompiledCodeBuffer VulkanShaderCache::GetShaderPrecompiledCode(uint6
     codeBuffer.pCode = reinterpret_cast<const uint32_t*>(&m_cacheStorage[cacheLocation.beginPosition]);
     
     if (cacheLocation.sizeInU8 % sizeof(uint32_t) != 0) {
-        AM_ASSERT_GRAPHICS_API(false, "SPIR-V code size must be multiple of sizeof(uint32_t)");
+        AM_ASSERT_GRAPHICS_API_FAIL("SPIR-V code size must be multiple of sizeof(uint32_t)");
         return {};
     }
 
@@ -168,8 +168,8 @@ VulkanShaderCompiledCodeBuffer VulkanShaderCache::GetShaderPrecompiledCode(const
 
     VulkanShaderCompiledCodeBuffer buffer = {};
 
-    buffer.sizeInU32    = location.sizeInU8 / sizeof(uint32_t);
-    buffer.pCode        = (const uint32_t*)(m_cacheStorage.data() + location.beginPosition);
+    buffer.sizeInU32 = location.sizeInU8 / sizeof(uint32_t);
+    buffer.pCode     = (const uint32_t*)(m_cacheStorage.data() + location.beginPosition);
 
     return buffer;
 }

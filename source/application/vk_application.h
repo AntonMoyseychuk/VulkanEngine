@@ -148,7 +148,12 @@ struct VulkanFramebuffers
 struct VulkanCommandPool
 {
     VkCommandPool pPool;
-    VkCommandBuffer pCommandBuffer;
+};
+
+
+struct VulkanCommandBuffer
+{
+    VkCommandBuffer pBuffer;
 };
 
 
@@ -219,8 +224,11 @@ private:
     static void TerminateVulkanFramebuffers() noexcept;
 
     static bool InitVulkanCommandPool() noexcept;
+    static void TerminateVulkanCommandPool() noexcept;
+
+    static bool InitVulkanCommandBuffer() noexcept;
+    static void TerminateVulkanCommandBuffer() noexcept;
     static void ResetCommandBuffer() noexcept;
-    static void TerminateCommandPool() noexcept;
 
     static bool InitVulkanSyncObjects() noexcept;
     static void TerminateSyncObjects() noexcept;
@@ -268,6 +276,7 @@ private:
         VulkanGraphicsPipeline  graphicsPipeline;
         VulkanFramebuffers      framebuffers;
         VulkanCommandPool       commandPool;
+        VulkanCommandBuffer     commandBuffer;
         VulkanSyncObjects       syncObjects;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;

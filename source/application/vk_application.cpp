@@ -76,7 +76,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         AM_LOG_GRAPHICS_API_WARN(pCallbackData->pMessage);
     } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        AM_ASSERT_GRAPHICS_API(false, pCallbackData->pMessage);
+        AM_ASSERT_GRAPHICS_API_FAIL(pCallbackData->pMessage);
     } else {
         const std::string message = fmt::format("[UNKNOWN]: {}", pCallbackData->pMessage);
         AM_LOG_GRAPHICS_API_INFO(message.c_str());
@@ -342,7 +342,7 @@ static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice&
         }
 
         if (!isLogicalDeviceExtensionSuppoted) {
-            AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device doesn't support required extensions '{}'", pExtension);
+            AM_ASSERT_GRAPHICS_API_FAIL("Vulkan logical device doesn't support required extensions '{}'", pExtension);
             return false;
         }
     }
@@ -381,7 +381,7 @@ static uint64_t GetVulkanDeviceTypePriority(VkPhysicalDeviceType type) noexcept
         case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
             return 1000;
         default:
-            AM_ASSERT_GRAPHICS_API(false, "Unsupported Vulkan physical device type");
+            AM_ASSERT_GRAPHICS_API_FAIL("Unsupported Vulkan physical device type");
             return 0;
     }
 }
@@ -644,7 +644,7 @@ static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysi
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.pDevice, surface.pSurface, &formatCount, nullptr);
 
     if (formatCount == 0) {
-        AM_ASSERT_GRAPHICS_API(false, "There are no any available physical device surface formats");
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any available physical device surface formats");
         return {};
     }
 
@@ -655,7 +655,7 @@ static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysi
     vkGetPhysicalDeviceSurfacePresentModesKHR(device.pDevice, surface.pSurface, &presentModesCount, nullptr);
 
     if (presentModesCount == 0) {
-        AM_ASSERT_GRAPHICS_API(false, "There are no any available physical device surface formats");
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any available physical device surface formats");
         return {};
     }
 
@@ -745,7 +745,7 @@ bool VulkanApplication::Init() noexcept
 
     s_pAppInst = std::unique_ptr<VulkanApplication>(new VulkanApplication(appInitInfo));
     if (!IsInitialized()) {
-        AM_ASSERT(false, "VulkanApplication instance initialization failed");
+        AM_ASSERT_FAIL("VulkanApplication instance initialization failed");
         Terminate();
         return false;
     }
@@ -798,7 +798,7 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
 #endif
     
     if (glfwInit() != GLFW_TRUE) {
-        AM_ASSERT_WINDOW(false, "GLFW initialization failed");
+        AM_ASSERT_WINDOW_FAIL("GLFW initialization failed");
         return false;
     }
 
@@ -835,7 +835,7 @@ bool VulkanApplication::InitVulkanDebugMessanger(const VkDebugUtilsMessengerCrea
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan debug message callback..."));
 
     if (CreateDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, &messengerCreateInfo, nullptr, &s_pVulkanState->intance.pDebugMessenger) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan debug callback initialization failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan debug callback initialization failed");
         return false;
     }
 
@@ -911,7 +911,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
 #endif
 
     if (vkCreateInstance(&instCreateInfo, nullptr, &s_pVulkanState->intance.pInstance) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan instance creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan instance creation failed");
         return false;
     }
 
@@ -943,12 +943,12 @@ bool VulkanApplication::InitVulkanSurface() noexcept
 
 #if defined(AM_OS_WINDOWS)
     if (!IsGLFWWindowCreated()) {
-        AM_ASSERT(false, "GLFW window is not created. Create it before {}", __FUNCTION__);
+        AM_ASSERT_FAIL("GLFW window is not created. Create it before {}", __FUNCTION__);
         return false;
     }
 
     if (!IsVulkanInstanceInitialized()) {
-        AM_ASSERT(false, "Vulkan Instance is not created. Create it before {}", __FUNCTION__);
+        AM_ASSERT_FAIL("Vulkan Instance is not created. Create it before {}", __FUNCTION__);
         return false;
     }
 
@@ -960,7 +960,7 @@ bool VulkanApplication::InitVulkanSurface() noexcept
     surfaceCreateInfo.hinstance = GetModuleHandle(nullptr);
 
     if (vkCreateWin32SurfaceKHR(s_pVulkanState->intance.pInstance, &surfaceCreateInfo, nullptr, &s_pVulkanState->surface.pSurface) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan surface creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan surface creation failed");
         return false;
     }
 
@@ -988,12 +988,12 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     }
 
     if (!IsVulkanInstanceInitialized()) {
-        AM_ASSERT(false, "Vulkan instance must be initialized before physical device initialization");
+        AM_ASSERT_FAIL("Vulkan instance must be initialized before physical device initialization");
         return false;
     }
 
     if (!IsVulkanSurfaceInitialized()) {
-        AM_ASSERT(false, "Vulkan surface must be initialized before physical device initialization");
+        AM_ASSERT_FAIL("Vulkan surface must be initialized before physical device initialization");
         return false;
     }
 
@@ -1003,7 +1003,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     vkEnumeratePhysicalDevices(s_pVulkanState->intance.pInstance, &deviceCount, nullptr);
 
     if (deviceCount <= 0) {
-        AM_ASSERT_GRAPHICS_API(false, "There are no any physical graphics devices that support Vulkan");
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any physical graphics devices that support Vulkan");
         return false;
     }
 
@@ -1051,7 +1051,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     }
 
     if (suitableDevices.empty()) {
-        AM_ASSERT_GRAPHICS_API(false, "There are no any Vulkan physical graphics devices that support required properties");
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any Vulkan physical graphics devices that support required properties");
         return false;
     }
 
@@ -1078,7 +1078,7 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
     }
 
     if (!IsVulkanPhysicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan physical device must be initialized before logical device initialization");
+        AM_ASSERT_FAIL("Vulkan physical device must be initialized before logical device initialization");
         return false;
     }
 
@@ -1148,7 +1148,7 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
     VkDevice& pDevice = s_pVulkanState->logicalDevice.pDevice;
 
     if (vkCreateDevice(s_pVulkanState->physicalDevice.pDevice, &createInfo, nullptr, &pDevice) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan logical device creation failed");
         return false;
     }
     
@@ -1160,7 +1160,7 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
         vkGetDeviceQueue(pDevice, queueFamilyIndex, 0, ppQueue);
 
         if (*ppQueue == VK_NULL_HANDLE) {
-            AM_ASSERT_GRAPHICS_API(false, "Failed to get device queue");
+            AM_ASSERT_GRAPHICS_API_FAIL("Failed to get device queue");
             return false;
         }
     }
@@ -1187,22 +1187,22 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     }
 
     if (!IsGLFWWindowCreated()) {
-        AM_ASSERT(false, "Window must be initialized before Vulkan swap chain initialization");
+        AM_ASSERT_FAIL("Window must be initialized before Vulkan swap chain initialization");
         return false;
     }
 
     if (!IsVulkanPhysicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan phisical device must be initialized before swap chain initialization");
+        AM_ASSERT_FAIL("Vulkan phisical device must be initialized before swap chain initialization");
         return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before swap chain initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before swap chain initialization");
         return false;
     }
 
     if (!IsVulkanSurfaceInitialized()) {
-        AM_ASSERT(false, "Vulkan surface must be initialized before swap chain initialization");
+        AM_ASSERT_FAIL("Vulkan surface must be initialized before swap chain initialization");
         return false;
     }
 
@@ -1211,7 +1211,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     VulkanSwapChainDesc& swapChainDesc = s_pVulkanState->swapChain.desc;
 
     if (!swapChainDesc.IsValid()) {
-        AM_ASSERT(false, "Vulkan swap chain description is invalid");
+        AM_ASSERT_FAIL("Vulkan swap chain description is invalid");
         return false;
     }
 
@@ -1259,7 +1259,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &s_pVulkanState->swapChain.pSwapChain) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan swap chain creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan swap chain creation failed");
         return false;
     }
 
@@ -1293,7 +1293,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
         createInfo.subresourceRange.layerCount      = 1;
 
         if (vkCreateImageView(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-            AM_ASSERT_GRAPHICS_API(false, "Vulkan image view {} creation failed", i);
+            AM_ASSERT_GRAPHICS_API_FAIL("Vulkan image view {} creation failed", i);
             return false;
         }
     }
@@ -1324,12 +1324,12 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before render pass initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before render pass initialization");
         return false;
     }
 
     if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before render pass initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before render pass initialization");
         return false;
     }
 
@@ -1374,7 +1374,7 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
     renderPassCreateInfo.pDependencies = &subpassDependency;
 
     if (vkCreateRenderPass(pLogicalDevice, &renderPassCreateInfo, nullptr, &pRenderPass) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan render pass creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan render pass creation failed");
         return false;
     }
 
@@ -1398,22 +1398,22 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     }
 
     if (!VulkanShaderSystem::IsInitialized()) {
-        AM_ASSERT(false, "VulkanShaderSystem must be initialized before graphics pipeline initialization");
+        AM_ASSERT_FAIL("VulkanShaderSystem must be initialized before graphics pipeline initialization");
         return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before graphics pipeline initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before graphics pipeline initialization");
         return false;
     }
 
     if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT(false, "Vulkan swap chain must be initialized before graphics pipeline initialization");
+        AM_ASSERT_FAIL("Vulkan swap chain must be initialized before graphics pipeline initialization");
         return false;
     }
 
     if (!IsVulkanRenderPassInitialized()) {
-        AM_ASSERT(false, "Vulkan render pass must be initialized before graphics pipeline initialization");
+        AM_ASSERT_FAIL("Vulkan render pass must be initialized before graphics pipeline initialization");
         return false;
     }
 
@@ -1536,7 +1536,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
 
     if (vkCreatePipelineLayout(pLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &pPipelineLayout) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan pipeline layout creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan pipeline layout creation failed");
         return false;
     }
 
@@ -1561,7 +1561,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     VkPipeline& pPipeline = s_pVulkanState->graphicsPipeline.pPipeline;
 
     if (vkCreateGraphicsPipelines(pLogicalDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pPipeline) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan pipeline creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan pipeline creation failed");
         return false;
     }
 
@@ -1591,17 +1591,17 @@ bool VulkanApplication::InitVulkanFramebuffers() noexcept
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before framebuffers initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before framebuffers initialization");
         return false;
     }
 
     if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT(false, "Vulkan swap chain must be initialized before framebuffers initialization");
+        AM_ASSERT_FAIL("Vulkan swap chain must be initialized before framebuffers initialization");
         return false;
     }
 
     if (!IsVulkanRenderPassInitialized()) {
-        AM_ASSERT(false, "Vulkan render pass must be initialized before framebuffers initialization");
+        AM_ASSERT_FAIL("Vulkan render pass must be initialized before framebuffers initialization");
         return false;
     }
 
@@ -1631,7 +1631,7 @@ bool VulkanApplication::InitVulkanFramebuffers() noexcept
         framebufferCreateInfo.layers = _countof(imageViewAttachments);
 
         if (vkCreateFramebuffer(s_pVulkanState->logicalDevice.pDevice, &framebufferCreateInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
-            AM_ASSERT_GRAPHICS_API(false, "Vulkan framebuffers creation failed");
+            AM_ASSERT_GRAPHICS_API_FAIL("Vulkan framebuffers creation failed");
             return false;
         }
     }
@@ -1655,17 +1655,17 @@ void VulkanApplication::TerminateVulkanFramebuffers() noexcept
 bool VulkanApplication::InitVulkanCommandPool() noexcept
 {
     if (IsVulkanCommandPoolInitialized()) {
-        AM_LOG_WARN("Vulkan command pool are already initialized");
+        AM_LOG_WARN("Vulkan command pool is already initialized");
         return true;
     }
 
     if (!IsVulkanPhysicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan physical device must be initialized before command pool initialization");
+        AM_ASSERT_FAIL("Vulkan physical device must be initialized before command pool initialization");
         return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT(false, "Vulkan logical device must be initialized before command pool initialization");
+        AM_ASSERT_FAIL("Vulkan logical device must be initialized before command pool initialization");
         return false;
     }
 
@@ -1683,24 +1683,59 @@ bool VulkanApplication::InitVulkanCommandPool() noexcept
     commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsIndex;
 
     if (vkCreateCommandPool(pDevice, &commandPoolCreateInfo, nullptr, &pCommandPool) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan command pool creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command pool creation failed");
         return false;
     }
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan command pool initialization finished"));
 
+    return true;
+}
+
+
+void VulkanApplication::ResetCommandBuffer() noexcept
+{
+    if (!IsVulkanCommandBufferInitialized()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command buffer must be initialized before resetting");
+        return;
+    }
+
+    vkResetCommandBuffer(s_pVulkanState->commandBuffer.pBuffer, 0);   
+}
+
+
+void VulkanApplication::TerminateVulkanCommandPool() noexcept
+{
+    if (s_pVulkanState) {
+        vkDestroyCommandPool(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->commandPool.pPool, nullptr);
+    }
+}
+
+
+bool VulkanApplication::InitVulkanCommandBuffer() noexcept
+{
+    if (IsVulkanCommandBufferInitialized()) {
+        AM_LOG_WARN("Vulkan command buffer is already initialized");
+        return true;
+    }
+
+    if (!IsVulkanCommandPoolInitialized()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command pool must be initialized before command buffer");
+        return true;
+    }
+
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan command buffer..."));
 
-    VkCommandBuffer& pCommandBuf = s_pVulkanState->commandPool.pCommandBuffer;
+    VkCommandBuffer& pCommandBuf = s_pVulkanState->commandBuffer.pBuffer;
 
     VkCommandBufferAllocateInfo commandBufAllocateInfo = {};
     commandBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    commandBufAllocateInfo.commandPool = pCommandPool;
+    commandBufAllocateInfo.commandPool = s_pVulkanState->commandPool.pPool;
     commandBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     commandBufAllocateInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(pDevice, &commandBufAllocateInfo, &pCommandBuf) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan command buffer allocation failed");
+    if (vkAllocateCommandBuffers(s_pVulkanState->logicalDevice.pDevice, &commandBufAllocateInfo, &pCommandBuf) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command buffer allocation failed");
         return false;
     }
 
@@ -1710,22 +1745,9 @@ bool VulkanApplication::InitVulkanCommandPool() noexcept
 }
 
 
-void VulkanApplication::ResetCommandBuffer() noexcept
+void VulkanApplication::TerminateVulkanCommandBuffer() noexcept
 {
-    if (!IsVulkanCommandBufferInitialized()) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan command buffer must be initialized before resetting");
-        return;
-    }
-
-    vkResetCommandBuffer(s_pVulkanState->commandPool.pCommandBuffer, 0);   
-}
-
-
-void VulkanApplication::TerminateCommandPool() noexcept
-{
-    if (s_pVulkanState) {
-        vkDestroyCommandPool(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->commandPool.pPool, nullptr);
-    }
+    // Destroys with command pool
 }
 
 
@@ -1737,12 +1759,12 @@ bool VulkanApplication::InitVulkanSyncObjects() noexcept
     }
 
     if (!IsVulkanInstanceInitialized()) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan instance must be initialized before sync objects initialization");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan instance must be initialized before sync objects initialization");
         return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device be initialized before sync objects initialization");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan logical device be initialized before sync objects initialization");
         return false;
     }
 
@@ -1756,12 +1778,12 @@ bool VulkanApplication::InitVulkanSyncObjects() noexcept
     VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
 
     if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pImageAvailableSemaphore) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Image available semaphore creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Image available semaphore creation failed");
         return false;
     }
 
     if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pRenderFinishedSemaphore) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Render finished semaphore creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Render finished semaphore creation failed");
         return false;
     }
 
@@ -1770,7 +1792,7 @@ bool VulkanApplication::InitVulkanSyncObjects() noexcept
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     if (vkCreateFence(pLogicalDevice, &fenceCreateInfo, nullptr, &syncObjects.pInFlightFence) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "In flight fence creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("In flight fence creation failed");
         return false;
     }
 
@@ -1844,6 +1866,10 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
+    if (!InitVulkanCommandBuffer()) {
+        return false;
+    }
+
     if (!InitVulkanSyncObjects()) {
         return false;
     }
@@ -1857,7 +1883,7 @@ bool VulkanApplication::InitVulkan() noexcept
 void VulkanApplication::TerminateVulkan() noexcept
 {
     TerminateSyncObjects();
-    TerminateCommandPool();
+    TerminateVulkanCommandPool();
     TerminateVulkanFramebuffers();
     TerminateVulkanGraphicsPipeline();
     TerminateVulkanRenderPass();
@@ -1961,13 +1987,13 @@ bool VulkanApplication::IsVulkanFramebuffersInitialized() noexcept
 
 bool VulkanApplication::IsVulkanCommandPoolInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->commandPool.pPool != VK_NULL_HANDLE && IsVulkanCommandBufferInitialized();
+    return s_pVulkanState && s_pVulkanState->commandPool.pPool != VK_NULL_HANDLE;
 }
 
 
 bool VulkanApplication::IsVulkanCommandBufferInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->commandPool.pCommandBuffer != VK_NULL_HANDLE;;
+    return s_pVulkanState && s_pVulkanState->commandBuffer.pBuffer != VK_NULL_HANDLE;;
 }
 
 
@@ -1988,6 +2014,7 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
         && IsVulkanGraphicsPipelineInitialized()
         && IsVulkanFramebuffersInitialized()
         && IsVulkanCommandPoolInitialized()
+        && IsVulkanCommandBufferInitialized()
         && IsVulkanSyncObjectsInitialized();
 }
 
@@ -1995,22 +2022,22 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
 bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uint32_t imageIndex) noexcept
 {
     if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT(false, "Vulkan swap chain must be initialized before command buffer recording");
+        AM_ASSERT_FAIL("Vulkan swap chain must be initialized before command buffer recording");
         return false;
     }
 
     if (!IsVulkanRenderPassInitialized()) {
-        AM_ASSERT(false, "Vulkan render pass must be initialized before command buffer recording");
+        AM_ASSERT_FAIL("Vulkan render pass must be initialized before command buffer recording");
         return false;
     }
 
     if (!IsVulkanGraphicsPipelineInitialized()) {
-        AM_ASSERT(false, "Vulkan graphics pipeline must be initialized before command buffer recording");
+        AM_ASSERT_FAIL("Vulkan graphics pipeline must be initialized before command buffer recording");
         return false;
     }
 
     if (!IsVulkanFramebuffersInitialized()) {
-        AM_ASSERT(false, "Vulkan framebuffers must be initialized before command buffer recording");
+        AM_ASSERT_FAIL("Vulkan framebuffers must be initialized before command buffer recording");
         return false;
     }
 
@@ -2020,7 +2047,7 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
     commandBufferBeginInfo.flags = 0;
 
     if (vkBeginCommandBuffer(pCommandBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Failed to begin command buffer");
+        AM_ASSERT_GRAPHICS_API_FAIL("Failed to begin command buffer");
         return false;
     }
 
@@ -2062,7 +2089,7 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
     vkCmdEndRenderPass(pCommandBuffer);
 
     if (vkEndCommandBuffer(pCommandBuffer) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Failed to end command buffer");
+        AM_ASSERT_GRAPHICS_API_FAIL("Failed to end command buffer");
         return false;
     }
 
@@ -2073,14 +2100,14 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
 void VulkanApplication::RenderFrame() noexcept
 {
     if (!IsVulkanInitialized()) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan must be initialized before rendering");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan must be initialized before rendering");
         return;
     }
 
     VulkanLogicalDevice& logicalDevice = s_pVulkanState->logicalDevice;
     VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
     VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
-    VulkanCommandPool& commandPool = s_pVulkanState->commandPool;
+    VulkanCommandBuffer& commandBuffer = s_pVulkanState->commandBuffer;
 
     vkWaitForFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence, VK_TRUE, UINT64_MAX);
     vkResetFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence);
@@ -2090,7 +2117,7 @@ void VulkanApplication::RenderFrame() noexcept
         syncObjects.pImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
     ResetCommandBuffer();
-    if (!RecordCommandBuffer(commandPool.pCommandBuffer, imageIndex)) {
+    if (!RecordCommandBuffer(commandBuffer.pBuffer, imageIndex)) {
         return;
     }
 
@@ -2110,7 +2137,7 @@ void VulkanApplication::RenderFrame() noexcept
     submitInfo.pWaitDstStageMask = waitStages;
 
     VkCommandBuffer commandBuffers[] = {
-        commandPool.pCommandBuffer
+        commandBuffer.pBuffer
     };
     submitInfo.pCommandBuffers = commandBuffers;
     submitInfo.commandBufferCount = _countof(commandBuffers);
@@ -2122,7 +2149,7 @@ void VulkanApplication::RenderFrame() noexcept
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     if (vkQueueSubmit(logicalDevice.graphicsQueue, 1, &submitInfo, syncObjects.pInFlightFence) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Failed to submit render queue");
+        AM_ASSERT_GRAPHICS_API_FAIL("Failed to submit render queue");
         return;
     }
 

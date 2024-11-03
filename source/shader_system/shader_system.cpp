@@ -91,9 +91,9 @@ struct VulkanShaderBuildInfo
         return pShaderId && pShaderId->IsHashValid() && (kind == shaderc_vertex_shader || kind == shaderc_fragment_shader);
     }
 
-    const ShaderID*                 pShaderId = nullptr;
-    shaderc_shader_kind             kind;
-    shaderc::CompileOptions         compileOptions;
+    const ShaderID* pShaderId = nullptr;
+    shaderc_shader_kind kind;
+    shaderc::CompileOptions compileOptions;
 };
 
 
@@ -288,7 +288,7 @@ static std::vector<uint8_t> BuildSPIRVCodeFormFile(const VulkanShaderGroupSetup&
             break;
 
         default:
-            AM_ASSERT_GRAPHICS_API(false, "Invalid shader kind");
+            AM_ASSERT_GRAPHICS_API_FAIL("Invalid shader kind");
             break;
     }
 
@@ -327,7 +327,7 @@ static VkShaderModule CreateVulkanShaderModule(VkDevice pLogicalDevice, const ui
 
     VkShaderModule pModule;
     if (vkCreateShaderModule(pLogicalDevice, &createInfo, nullptr, &pModule) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan shader module creation failed");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan shader module creation failed");
         return VK_NULL_HANDLE;
     }
 
@@ -369,7 +369,7 @@ static std::vector<VulkanShaderGroupFilepaths> GetShaderGroupFilepathsList(const
             } else if (IsPixelShaderFile(filepath)) {
                 pathGroup.psFilepath = filepath.string();
             } else {
-                AM_ASSERT(false, "Invalid shader related file type");
+                AM_ASSERT_FAIL("Invalid shader related file type");
             }
         }, 0);
 
@@ -398,7 +398,7 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing VulkanShaderSystem..."));
 
     if (pLogicalDevice == VK_NULL_HANDLE) {
-        AM_ASSERT_GRAPHICS_API(false, "Vulkan logical device is VK_NULL_HANDLE");
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan logical device is VK_NULL_HANDLE");
         return false;
     }
 
@@ -406,7 +406,7 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
     s_pShaderSysInstace = std::unique_ptr<VulkanShaderSystem>(new VulkanShaderSystem);
     if (!s_pShaderSysInstace) {
-        AM_ASSERT_GRAPHICS_API(false, "Failed to allocate VulkanShaderSystem");
+        AM_ASSERT_GRAPHICS_API_FAIL("Failed to allocate VulkanShaderSystem");
         return false;
     }
 
@@ -507,7 +507,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     }
 
     ClearVulkanShaderModules();
-    
+
     m_shaderModules.reserve(totalShaderCombinations);
 
     const auto CreateAllCombinationsShaderModules = [this](const VulkanShaderGroupSetup& setup, 
@@ -630,7 +630,7 @@ VulkanShaderGroupSetup::VulkanShaderGroupSetup(const fs::path &jsonFilepath)
                 define.shaderTypeMask |= AM_PIXEL_SHADER_MASK;
                 isPixel = true;
             } else {
-                AM_ASSERT(false, "Invalid shader setup type");
+                AM_ASSERT_FAIL("Invalid shader setup type");
             }
         }
 
