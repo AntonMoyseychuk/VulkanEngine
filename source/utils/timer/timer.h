@@ -13,7 +13,7 @@ public:
     float GetElapsedTime() const noexcept
     {
         m_endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration<float>(m_endTime - m_startTime);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_endTime - m_startTime);
         
         return duration.count();
     }

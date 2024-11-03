@@ -483,8 +483,9 @@ void VulkanShaderSystem::ClearVulkanShaderModules() noexcept
 {
     AM_ASSERT_GRAPHICS_API(IsVulkanLogicalDeviceValid(), "Reference to invalid Vulkan logical device inside {}", __FUNCTION__);
 
-    for (const auto& [shaderId, pVkModule] : m_shaderModules) {
+    for (auto& [shaderId, pVkModule] : m_shaderModules) {
         vkDestroyShaderModule(s_pLogicalDevice, pVkModule, nullptr);
+        pVkModule = VK_NULL_HANDLE;
     }
 
     m_shaderModules.clear();

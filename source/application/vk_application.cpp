@@ -6,6 +6,7 @@
 #include "utils/debug/assertion.h"
 #include "utils/json/json.h"
 #include "utils/file/file.h"
+#include "utils/timer/timer.h"
 
 #include "shader_system/shader_system.h"
 
@@ -779,8 +780,6 @@ void VulkanApplication::Run() noexcept
         glfwPollEvents();
         RenderFrame();
     }
-
-    vkDeviceWaitIdle(s_pVulkanState->logicalDevice.pDevice);
 }
 
 
@@ -808,10 +807,13 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
 
     s_pGLFWWindow = glfwCreateWindow((int)initInfo.width, (int)initInfo.height, initInfo.title.c_str(), nullptr, nullptr);
     const bool isWindowCreated = s_pGLFWWindow != nullptr;
+    
+    if (!isWindowCreated) {
+        AM_ASSERT_WINDOW_FAIL("GLFW window creation failed");
+        return false;
+    }
 
     glfwHideWindow(s_pGLFWWindow);
-    
-    AM_ASSERT_WINDOW(isWindowCreated, "GLFW window creation failed");
     
     return isWindowCreated;
 }
@@ -820,6 +822,7 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
 void VulkanApplication::TerminateGLFWWindow() noexcept
 {
     glfwDestroyWindow(s_pGLFWWindow);
+    s_pGLFWWindow = nullptr;
     glfwTerminate();
 }
 
@@ -850,7 +853,10 @@ void VulkanApplication::TerminateVulkanDebugCallback() noexcept
 {
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     if (s_pVulkanState) {
-        DestroyDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, s_pVulkanState->intance.pDebugMessenger, nullptr);
+        VkDebugUtilsMessengerEXT& messanger = s_pVulkanState->intance.pDebugMessenger;
+
+        DestroyDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, messanger, nullptr);
+        messanger = VK_NULL_HANDLE;
     }
 #endif
 }
@@ -929,7 +935,10 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
     TerminateVulkanDebugCallback();
 
     if (s_pVulkanState) {
-        vkDestroyInstance(s_pVulkanState->intance.pInstance, nullptr);
+        VkInstance& pInstance = s_pVulkanState->intance.pInstance;
+        
+        vkDestroyInstance(pInstance, nullptr);
+        pInstance = VK_NULL_HANDLE;
     }
 }
 
@@ -975,7 +984,10 @@ bool VulkanApplication::InitVulkanSurface() noexcept
 void VulkanApplication::TerminateVulkanSurface() noexcept
 {
     if (s_pVulkanState) {
-        vkDestroySurfaceKHR(s_pVulkanState->intance.pInstance, s_pVulkanState->surface.pSurface, nullptr);
+        VkSurfaceKHR& pSurface = s_pVulkanState->surface.pSurface;
+
+        vkDestroySurfaceKHR(s_pVulkanState->intance.pInstance, pSurface, nullptr);
+        pSurface = VK_NULL_HANDLE;
     }
 }
 
@@ -1067,6 +1079,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
 
 void VulkanApplication::TerminateVulkanPhysicalDevice() noexcept
 {
+    // Terminates automatically
 }
 
 
@@ -1174,7 +1187,10 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
 void VulkanApplication::TerminateVulkanLogicalDevice() noexcept
 {
     if (s_pVulkanState) {
-        vkDestroyDevice(s_pVulkanState->logicalDevice.pDevice, nullptr);
+        VkDevice& pDevice = s_pVulkanState->logicalDevice.pDevice;
+
+        vkDestroyDevice(pDevice, nullptr);
+        pDevice = VK_NULL_HANDLE;
     }
 }
 
@@ -1307,11 +1323,15 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
 void VulkanApplication::TerminateVulkanSwapChain() noexcept
 {
     if (s_pVulkanState) {
-        for (VkImageView& imageView : s_pVulkanState->swapChain.imageViews) {
-            vkDestroyImageView(s_pVulkanState->logicalDevice.pDevice, imageView, nullptr);
+        for (VkImageView& pImageView : s_pVulkanState->swapChain.imageViews) {
+            vkDestroyImageView(s_pVulkanState->logicalDevice.pDevice, pImageView, nullptr);
+            pImageView = VK_NULL_HANDLE;
         }
 
-        vkDestroySwapchainKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, nullptr);
+        VkSwapchainKHR& pSwapChain = s_pVulkanState->swapChain.pSwapChain;
+
+        vkDestroySwapchainKHR(s_pVulkanState->logicalDevice.pDevice, pSwapChain, nullptr);
+        pSwapChain = VK_NULL_HANDLE;
     }
 }
 
@@ -1385,7 +1405,10 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
 void VulkanApplication::TerminateVulkanRenderPass() noexcept
 {
     if (s_pVulkanState) {
-        vkDestroyRenderPass(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->renderPass.pRenderPass, nullptr);
+        VkRenderPass& pRenderpass = s_pVulkanState->renderPass.pRenderPass;
+
+        vkDestroyRenderPass(s_pVulkanState->logicalDevice.pDevice, pRenderpass, nullptr);
+        pRenderpass = VK_NULL_HANDLE;
     }
 }
 
@@ -1577,8 +1600,15 @@ void VulkanApplication::TerminateVulkanGraphicsPipeline() noexcept
     if (s_pVulkanState) {
         VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
 
-        vkDestroyPipelineLayout(pLogicalDevice, s_pVulkanState->graphicsPipeline.pLayout, nullptr);
-        vkDestroyPipeline(pLogicalDevice, s_pVulkanState->graphicsPipeline.pPipeline, nullptr);
+        VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
+
+        vkDestroyPipelineLayout(pLogicalDevice, pPipelineLayout, nullptr);
+        pPipelineLayout = VK_NULL_HANDLE;
+
+        VkPipeline& pPipeline = s_pVulkanState->graphicsPipeline.pPipeline;
+
+        vkDestroyPipeline(pLogicalDevice, pPipeline, nullptr);
+        pPipeline = VK_NULL_HANDLE;
     }
 }
 
@@ -1647,6 +1677,7 @@ void VulkanApplication::TerminateVulkanFramebuffers() noexcept
     if (s_pVulkanState) {
         for (VkFramebuffer& pFramebuffer : s_pVulkanState->framebuffers.framebuffers) {
             vkDestroyFramebuffer(s_pVulkanState->logicalDevice.pDevice, pFramebuffer, nullptr);
+            pFramebuffer = VK_NULL_HANDLE;
         }
     }
 }
@@ -1693,26 +1724,18 @@ bool VulkanApplication::InitVulkanCommandPool() noexcept
 }
 
 
-void VulkanApplication::ResetCommandBuffer() noexcept
-{
-    if (!IsVulkanCommandBufferInitialized()) {
-        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command buffer must be initialized before resetting");
-        return;
-    }
-
-    vkResetCommandBuffer(s_pVulkanState->commandBuffer.pBuffer, 0);   
-}
-
-
 void VulkanApplication::TerminateVulkanCommandPool() noexcept
 {
     if (s_pVulkanState) {
-        vkDestroyCommandPool(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->commandPool.pPool, nullptr);
+        VkCommandPool& pPool = s_pVulkanState->commandPool.pPool;
+
+        vkDestroyCommandPool(s_pVulkanState->logicalDevice.pDevice, pPool, nullptr);
+        pPool = VK_NULL_HANDLE;
     }
 }
 
 
-bool VulkanApplication::InitVulkanCommandBuffer() noexcept
+bool VulkanApplication::InitVulkanCommandBuffers() noexcept
 {
     if (IsVulkanCommandBufferInitialized()) {
         AM_LOG_WARN("Vulkan command buffer is already initialized");
@@ -1726,15 +1749,20 @@ bool VulkanApplication::InitVulkanCommandBuffer() noexcept
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan command buffer..."));
 
-    VkCommandBuffer& pCommandBuf = s_pVulkanState->commandBuffer.pBuffer;
+    auto& commandBuffArray = s_pVulkanState->commandBufferArray;
 
     VkCommandBufferAllocateInfo commandBufAllocateInfo = {};
     commandBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufAllocateInfo.commandPool = s_pVulkanState->commandPool.pPool;
     commandBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    commandBufAllocateInfo.commandBufferCount = 1;
+    commandBufAllocateInfo.commandBufferCount = commandBuffArray.size();
 
-    if (vkAllocateCommandBuffers(s_pVulkanState->logicalDevice.pDevice, &commandBufAllocateInfo, &pCommandBuf) != VK_SUCCESS) {
+    VkCommandBuffer* commandBuffers[commandBuffArray.size()];
+    for (size_t i = 0; i < commandBuffArray.size(); ++i) {
+        commandBuffers[i] = &commandBuffArray[i].pBuffer;
+    }
+
+    if (vkAllocateCommandBuffers(s_pVulkanState->logicalDevice.pDevice, &commandBufAllocateInfo, *commandBuffers) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Vulkan command buffer allocation failed");
         return false;
     }
@@ -1745,7 +1773,7 @@ bool VulkanApplication::InitVulkanCommandBuffer() noexcept
 }
 
 
-void VulkanApplication::TerminateVulkanCommandBuffer() noexcept
+void VulkanApplication::TerminateVulkanCommandBuffers() noexcept
 {
     // Destroys with command pool
 }
@@ -1770,30 +1798,32 @@ bool VulkanApplication::InitVulkanSyncObjects() noexcept
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan sync objects..."));
 
-    VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
+    auto& syncObjectsArray = s_pVulkanState->syncObjectsArray;
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
-
-    if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pImageAvailableSemaphore) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API_FAIL("Image available semaphore creation failed");
-        return false;
-    }
-
-    if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pRenderFinishedSemaphore) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API_FAIL("Render finished semaphore creation failed");
-        return false;
-    }
 
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateFence(pLogicalDevice, &fenceCreateInfo, nullptr, &syncObjects.pInFlightFence) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API_FAIL("In flight fence creation failed");
-        return false;
+    VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+
+    for (VulkanSyncObjects& syncObjects : syncObjectsArray) {
+        if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pImageAvailableSemaphore) != VK_SUCCESS) {
+            AM_ASSERT_GRAPHICS_API_FAIL("Image available semaphore creation failed");
+            return false;
+        }
+
+        if (vkCreateSemaphore(pLogicalDevice, &semaphoreCreateInfo, nullptr, &syncObjects.pRenderFinishedSemaphore) != VK_SUCCESS) {
+            AM_ASSERT_GRAPHICS_API_FAIL("Render finished semaphore creation failed");
+            return false;
+        }
+
+        if (vkCreateFence(pLogicalDevice, &fenceCreateInfo, nullptr, &syncObjects.pInFlightFence) != VK_SUCCESS) {
+            AM_ASSERT_GRAPHICS_API_FAIL("In flight fence creation failed");
+            return false;
+        }
     }
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan sync objects initialization finished"));
@@ -1806,11 +1836,16 @@ void VulkanApplication::TerminateSyncObjects() noexcept
 {
     if (s_pVulkanState) {
         VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
-        VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
 
-        vkDestroyFence(pLogicalDevice, syncObjects.pInFlightFence, nullptr);
-        vkDestroySemaphore(pLogicalDevice, syncObjects.pRenderFinishedSemaphore, nullptr);
-        vkDestroySemaphore(pLogicalDevice, syncObjects.pImageAvailableSemaphore, nullptr);
+        for (VulkanSyncObjects& syncObjects : s_pVulkanState->syncObjectsArray) {
+            vkDestroyFence(pLogicalDevice, syncObjects.pInFlightFence, nullptr);
+            vkDestroySemaphore(pLogicalDevice, syncObjects.pRenderFinishedSemaphore, nullptr);
+            vkDestroySemaphore(pLogicalDevice, syncObjects.pImageAvailableSemaphore, nullptr);
+            
+            syncObjects.pInFlightFence           = VK_NULL_HANDLE;
+            syncObjects.pRenderFinishedSemaphore = VK_NULL_HANDLE;
+            syncObjects.pImageAvailableSemaphore = VK_NULL_HANDLE;
+        }
     }
 }
 
@@ -1823,6 +1858,8 @@ bool VulkanApplication::InitVulkan() noexcept
     }
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan..."));
+
+    Timer vulkanInitTimer;
 
     s_pVulkanState = std::make_unique<VulkanState>();
 
@@ -1866,7 +1903,7 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
-    if (!InitVulkanCommandBuffer()) {
+    if (!InitVulkanCommandBuffers()) {
         return false;
     }
 
@@ -1874,7 +1911,13 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
-    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished"));
+    const float vulkanInitTime = vulkanInitTimer.GetElapsedTime();
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished ({} ms)"), vulkanInitTime);
+
+#if defined(AM_RELEASE)
+    fprintf_s(stdout, "Vulkan initialization finished (%f ms)\n", vulkanInitTime);
+#endif
 
     return true;
 }
@@ -1882,6 +1925,8 @@ bool VulkanApplication::InitVulkan() noexcept
 
 void VulkanApplication::TerminateVulkan() noexcept
 {
+    vkDeviceWaitIdle(s_pVulkanState->logicalDevice.pDevice);
+
     TerminateSyncObjects();
     TerminateVulkanCommandPool();
     TerminateVulkanFramebuffers();
@@ -1993,13 +2038,41 @@ bool VulkanApplication::IsVulkanCommandPoolInitialized() noexcept
 
 bool VulkanApplication::IsVulkanCommandBufferInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->commandBuffer.pBuffer != VK_NULL_HANDLE;;
+    if (!s_pVulkanState) {
+        return false;
+    }
+
+    if (s_pVulkanState->commandBufferArray.empty()) {
+        return false;
+    }
+
+    for (const VulkanCommandBuffer& buffer : s_pVulkanState->commandBufferArray) {
+        if (buffer.pBuffer == VK_NULL_HANDLE) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
 bool VulkanApplication::IsVulkanSyncObjectsInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->syncObjects.IsValid();
+    if (!s_pVulkanState) {
+        return false;
+    }
+
+    if (s_pVulkanState->syncObjectsArray.empty()) {
+        return false;
+    }
+
+    for (const VulkanSyncObjects& syncObjects : s_pVulkanState->syncObjectsArray) {
+        if (!syncObjects.IsValid()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 
@@ -2019,7 +2092,30 @@ bool VulkanApplication::IsVulkanInitialized() noexcept
 }
 
 
-bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uint32_t imageIndex) noexcept
+VulkanApplication::VulkanApplication(const VulkanAppInitInfo& appInitInfo)
+{
+    
+}
+
+
+bool VulkanApplication::IsInstanceInitialized() const noexcept
+{
+    return true;
+}
+
+
+void VulkanApplication::ResetCommandBuffer(VulkanCommandBuffer &commandBuffer) noexcept
+{
+    if (!commandBuffer.IsValid()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Passed Vulkan command buffer is invalid");
+        return;
+    }
+
+    vkResetCommandBuffer(commandBuffer.pBuffer, 0);
+}
+
+
+bool VulkanApplication::RecordCommandBuffer(VulkanCommandBuffer &commandBuffer, uint32_t imageIndex) noexcept
 {
     if (!IsVulkanSwapChainInitialized()) {
         AM_ASSERT_FAIL("Vulkan swap chain must be initialized before command buffer recording");
@@ -2041,12 +2137,17 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
         return false;
     }
 
+    if (!commandBuffer.IsValid()) {
+        AM_ASSERT_FAIL("Passed Vulkan command buffer is invalid");
+        return false;
+    }
+
     VkCommandBufferBeginInfo commandBufferBeginInfo = {};
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     commandBufferBeginInfo.pInheritanceInfo = nullptr;
     commandBufferBeginInfo.flags = 0;
 
-    if (vkBeginCommandBuffer(pCommandBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(commandBuffer.pBuffer, &commandBufferBeginInfo) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Failed to begin command buffer");
         return false;
     }
@@ -2066,9 +2167,9 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
     renderPassBeginInfo.pClearValues = clearValues;
     renderPassBeginInfo.clearValueCount = _countof(clearValues);
 
-    vkCmdBeginRenderPass(pCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer.pBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(pCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pVulkanState->graphicsPipeline.pPipeline);
+    vkCmdBindPipeline(commandBuffer.pBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pVulkanState->graphicsPipeline.pPipeline);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -2077,18 +2178,18 @@ bool VulkanApplication::RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uin
     viewport.height = static_cast<float>(swapChainExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(pCommandBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer.pBuffer, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = swapChainExtent;
-    vkCmdSetScissor(pCommandBuffer, 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer.pBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(pCommandBuffer, 3, 1, 0, 0);
+    vkCmdDraw(commandBuffer.pBuffer, 3, 1, 0, 0);
 
-    vkCmdEndRenderPass(pCommandBuffer);
+    vkCmdEndRenderPass(commandBuffer.pBuffer);
 
-    if (vkEndCommandBuffer(pCommandBuffer) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(commandBuffer.pBuffer) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Failed to end command buffer");
         return false;
     }
@@ -2106,18 +2207,19 @@ void VulkanApplication::RenderFrame() noexcept
 
     VulkanLogicalDevice& logicalDevice = s_pVulkanState->logicalDevice;
     VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
-    VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjects;
-    VulkanCommandBuffer& commandBuffer = s_pVulkanState->commandBuffer;
+    VulkanSyncObjects& syncObjects = s_pVulkanState->syncObjectsArray[m_currentFrameIndex];
+    VulkanCommandBuffer& commandBuffer = s_pVulkanState->commandBufferArray[m_currentFrameIndex];
 
     vkWaitForFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(logicalDevice.pDevice, swapChain.pSwapChain, UINT64_MAX, 
+    VkResult acquireResult = vkAcquireNextImageKHR(logicalDevice.pDevice, swapChain.pSwapChain, UINT64_MAX, 
         syncObjects.pImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
-    ResetCommandBuffer();
-    if (!RecordCommandBuffer(commandBuffer.pBuffer, imageIndex)) {
+    vkResetFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence);
+
+    ResetCommandBuffer(commandBuffer);
+    if (!RecordCommandBuffer(commandBuffer, imageIndex)) {
         return;
     }
 
@@ -2166,19 +2268,15 @@ void VulkanApplication::RenderFrame() noexcept
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
-    vkQueuePresentKHR(logicalDevice.presentQueue, &presentInfo);
+    VkResult vulkanPresentResult = vkQueuePresentKHR(logicalDevice.presentQueue, &presentInfo);
+
+    IncFrameIndex();
 }
 
 
-VulkanApplication::VulkanApplication(const VulkanAppInitInfo& appInitInfo)
+void VulkanApplication::IncFrameIndex() noexcept
 {
-    
-}
-
-
-bool VulkanApplication::IsInstanceInitialized() const noexcept
-{
-    return true;
+    m_currentFrameIndex = (m_currentFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 

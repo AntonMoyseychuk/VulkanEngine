@@ -153,6 +153,8 @@ struct VulkanCommandPool
 
 struct VulkanCommandBuffer
 {
+    bool IsValid() const noexcept { return pBuffer != VK_NULL_HANDLE; }
+
     VkCommandBuffer pBuffer;
 };
 
@@ -226,9 +228,8 @@ private:
     static bool InitVulkanCommandPool() noexcept;
     static void TerminateVulkanCommandPool() noexcept;
 
-    static bool InitVulkanCommandBuffer() noexcept;
-    static void TerminateVulkanCommandBuffer() noexcept;
-    static void ResetCommandBuffer() noexcept;
+    static bool InitVulkanCommandBuffers() noexcept;
+    static void TerminateVulkanCommandBuffers() noexcept;
 
     static bool InitVulkanSyncObjects() noexcept;
     static void TerminateSyncObjects() noexcept;
@@ -253,16 +254,20 @@ private:
     
     static bool IsVulkanInitialized() noexcept;
 
-    bool RecordCommandBuffer(VkCommandBuffer& pCommandBuffer, uint32_t imageIndex) noexcept;
-
-    void RenderFrame() noexcept;
-
 private:
     VulkanApplication(const VulkanAppInitInfo& appInitInfo);
 
-    bool IsInstanceInitialized() const noexcept; 
+    bool IsInstanceInitialized() const noexcept;
+
+    void ResetCommandBuffer(VulkanCommandBuffer& commandBuffer) noexcept;
+    bool RecordCommandBuffer(VulkanCommandBuffer& commandBuffer, uint32_t imageIndex) noexcept;
+
+    void RenderFrame() noexcept;
+    void IncFrameIndex() noexcept;
 
 private:
+    static constexpr inline size_t MAX_FRAMES_IN_FLIGHT = 2;
+
     static inline GLFWwindow* s_pGLFWWindow = nullptr;
 
     struct VulkanState
@@ -276,13 +281,15 @@ private:
         VulkanGraphicsPipeline  graphicsPipeline;
         VulkanFramebuffers      framebuffers;
         VulkanCommandPool       commandPool;
-        VulkanCommandBuffer     commandBuffer;
-        VulkanSyncObjects       syncObjects;
+
+        std::array<VulkanCommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBufferArray;
+        
+        std::array<VulkanSyncObjects, MAX_FRAMES_IN_FLIGHT>   syncObjectsArray;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 
     static inline std::unique_ptr<VulkanApplication> s_pAppInst = nullptr;
 
 private:
-    
+    size_t m_currentFrameIndex = 0;
 };
