@@ -32,26 +32,29 @@ struct VulkanAppInitInfo
 };
 
 
-struct VulkanQueueFamilies
+struct VulkanQueueFamilyIndices
 {
     enum RequiredQueueFamilyType
     {
-        RequiredQueueFamilyType_GRAPHICS,
-        RequiredQueueFamilyType_PRESENT,
-        RequiredQueueFamilyType_COUNT
+        GRAPHICS_INDEX,
+        PRESENT_INDEX,
+        COUNT
     };
 
-    struct QueueFamily
+    VulkanQueueFamilyIndices() : graphicsIndex(-1), presentIndex(-1) {}
+    
+    bool IsValid() const noexcept { return graphicsIndex >= 0 && presentIndex >= 0; }
+
+    union
     {
-        std::optional<uint32_t> index;
-        float priority;
-        VkQueueFlagBits flags;
+        struct
+        {
+            int32_t graphicsIndex;
+            int32_t presentIndex;
+        };
+
+        std::array<uint32_t, COUNT> indices;
     };
-
-    VulkanQueueFamilies();
-    bool IsComplete() const noexcept;
-
-    std::vector<QueueFamily> families;
 };
 
 
@@ -72,7 +75,7 @@ struct VulkanPhysicalDevice
     VkPhysicalDeviceProperties  properties;
     VkPhysicalDeviceFeatures    features;
 
-    VulkanQueueFamilies         queueFamilies;
+    VulkanQueueFamilyIndices    queueFamilyIndices;
 };
 
 
@@ -80,7 +83,16 @@ struct VulkanLogicalDevice
 {
     VkDevice pDevice;
 
-    std::vector<VkQueue> queues;
+    union
+    {
+        struct
+        {
+            VkQueue graphicsQueue;
+            VkQueue presentQueue;
+        };
+
+        std::array<VkQueue, VulkanQueueFamilyIndices::COUNT> queues;
+    };
 };
 
 

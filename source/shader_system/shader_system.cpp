@@ -486,6 +486,8 @@ void VulkanShaderSystem::ClearVulkanShaderModules() noexcept
     for (const auto& [shaderId, pVkModule] : m_shaderModules) {
         vkDestroyShaderModule(s_pLogicalDevice, pVkModule, nullptr);
     }
+
+    m_shaderModules.clear();
 }
 
 void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
@@ -504,7 +506,8 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
         totalShaderCombinations += setups.rbegin()->GetPSDefinesCombinationsCount();
     }
 
-    m_shaderModules.clear();
+    ClearVulkanShaderModules();
+    
     m_shaderModules.reserve(totalShaderCombinations);
 
     const auto CreateAllCombinationsShaderModules = [this](const VulkanShaderGroupSetup& setup, 
