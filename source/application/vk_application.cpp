@@ -1449,17 +1449,34 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
     // Temp solution
-    ShaderIDProxy vsIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.vs").string(), {});
-    vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
+#if defined(AM_DEBUG)
+    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_NONE; 
+#elif defined(AM_RELEASE)
+    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
+#endif
+
+    {
+        ShaderIDProxy vsIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.vs").string(), {}, optimizationLevel);
+        if (shaderSystem.m_shaderModules.find(vsIdProxy) == shaderSystem.m_shaderModules.cend()) {
+            AM_ASSERT_GRAPHICS_API_FAIL("Can't find shader module");
+            abort();
+        }
+        vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
+    }
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo pixShaderStageInfo = {};
     pixShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    // Temp solution
-    ShaderIDProxy psIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.fs").string(), {});
-    pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
+    {
+        ShaderIDProxy psIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.fs").string(), {}, optimizationLevel);
+        if (shaderSystem.m_shaderModules.find(psIdProxy) == shaderSystem.m_shaderModules.cend()) {
+            AM_ASSERT_GRAPHICS_API_FAIL("Can't find shader module");
+            abort();
+        }    
+        pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
+    }
     pixShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, pixShaderStageInfo };

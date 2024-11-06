@@ -6,6 +6,9 @@
 
 #include <cstdint>
 
+#include "hash.h"
+
+
 namespace ds
 {
     template <typename ElemT>
@@ -31,8 +34,6 @@ namespace ds
         static uint64_t GetInvalidIDHash() noexcept { return INVALID_ID_HASH; }
 
     private:
-        static inline std::hash<StringViewType> s_hasher;
-
         static inline constexpr uint64_t INVALID_ID_HASH = std::numeric_limits<uint64_t>::max();
         static inline constexpr size_t PREALLOCATED_IDS_COUNT = 2048;
 

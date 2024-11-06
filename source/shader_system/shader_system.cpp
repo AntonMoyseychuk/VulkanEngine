@@ -13,9 +13,9 @@
 
 
 #if defined(AM_DEBUG)
-    static constexpr shaderc_optimization_level AM_SHADERC_OPTIMIZATION_LEVEL = shaderc_optimization_level_zero; 
+    static constexpr ShaderID::OptimizationLevel AM_SHADERC_OPTIMIZATION_LEVEL = ShaderID::OPTIMIZATION_LEVEL_NONE; 
 #elif defined(AM_RELEASE)
-    static constexpr shaderc_optimization_level AM_SHADERC_OPTIMIZATION_LEVEL = shaderc_optimization_level_performance; 
+    static constexpr ShaderID::OptimizationLevel AM_SHADERC_OPTIMIZATION_LEVEL = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
 #endif
 
 
@@ -108,6 +108,23 @@ static bool IsVertexShaderFile(const fs::path& filepath) noexcept
     }
 
     return false;
+}
+
+
+static shaderc_optimization_level ShaderIdOptimizationLevelToShadercLevel(ShaderID::OptimizationLevel level) noexcept
+{
+    AM_ASSERT_GRAPHICS_API(level < ShaderID::OPTIMIZATION_LEVEL_COUNT, "Invalid optimization level ({})", static_cast<uint32_t>(level));
+    
+    switch(level) {
+    case ShaderID::OPTIMIZATION_LEVEL_NONE:
+        return shaderc_optimization_level_zero;    
+    case ShaderID::OPTIMIZATION_LEVEL_SPEED:
+        return shaderc_optimization_level_performance;
+    case ShaderID::OPTIMIZATION_LEVEL_SIZE:
+        return shaderc_optimization_level_size;
+    default:
+        return shaderc_optimization_level_zero;
+    }
 }
 
 
@@ -267,7 +284,7 @@ static std::vector<uint8_t> BuildSPIRVCodeFormFile(const VulkanShaderGroupSetup&
     AM_ASSERT_GRAPHICS_API(shaderKind.has_value(), "Invalid shader kind");
     buildInfo.kind = shaderKind.value();
 
-    buildInfo.compileOptions.SetOptimizationLevel(AM_SHADERC_OPTIMIZATION_LEVEL);
+    buildInfo.compileOptions.SetOptimizationLevel(ShaderIdOptimizationLevelToShadercLevel(shaderId.GetOptimizationLevel()));
 
     const auto FillCompileOptionsDefines = [&shaderId, &buildInfo](const std::vector<const VulkanShaderDefine*>& defines)
     {
@@ -382,9 +399,9 @@ static std::vector<VulkanShaderGroupFilepaths> GetShaderGroupFilepathsList(const
 
 VulkanShaderSystem& VulkanShaderSystem::Instance() noexcept
 {
-    AM_ASSERT(s_pShaderSysInstace != nullptr, "Vulkan shader system is not initialized, call VulkanShaderSystem::Init(...) first");
+    AM_ASSERT(s_pShaderSysInstance != nullptr, "Vulkan shader system is not initialized, call VulkanShaderSystem::Init(...) first");
     
-    return *s_pShaderSysInstace;
+    return *s_pShaderSysInstance;
 }
 
 
@@ -404,13 +421,13 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
     s_pLogicalDevice = pLogicalDevice;
 
-    s_pShaderSysInstace = std::unique_ptr<VulkanShaderSystem>(new VulkanShaderSystem);
-    if (!s_pShaderSysInstace) {
+    s_pShaderSysInstance = std::unique_ptr<VulkanShaderSystem>(new VulkanShaderSystem);
+    if (!s_pShaderSysInstance) {
         AM_ASSERT_GRAPHICS_API_FAIL("Failed to allocate VulkanShaderSystem");
         return false;
     }
 
-    s_pShaderSysInstace->InitializeShaders();
+    s_pShaderSysInstance->InitializeShaders();
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "VulkanShaderSystem initialization finished"));
     return true;
@@ -419,7 +436,7 @@ bool VulkanShaderSystem::Init(VkDevice pLogicalDevice) noexcept
 
 void VulkanShaderSystem::Terminate() noexcept
 {
-    s_pShaderSysInstace = nullptr;
+    s_pShaderSysInstance = nullptr;
 }
 
 
@@ -437,7 +454,7 @@ void VulkanShaderSystem::RecompileShaders() noexcept
 
 bool VulkanShaderSystem::IsInstanceInitialized() noexcept
 {
-    return s_pShaderSysInstace != nullptr;
+    return s_pShaderSysInstance != nullptr;
 }
 
 
@@ -514,7 +531,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     const auto CreateAllCombinationsShaderModules = [this](const VulkanShaderGroupSetup& setup, 
         const std::vector<const VulkanShaderDefine*>& defines, ds::StrID shaderFilepath, bool forceRecompile) -> bool
     {
-        ShaderID shaderId(shaderFilepath, {});
+        ShaderID shaderId(shaderFilepath, {}, AM_SHADERC_OPTIMIZATION_LEVEL);
 
         bool newShaderCacheEntry = false;
 

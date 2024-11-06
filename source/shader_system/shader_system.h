@@ -58,7 +58,7 @@ private:
     bool LoadAndAddShaderModule(const ShaderID& shaderId) noexcept;
 
 private:
-    static inline std::unique_ptr<VulkanShaderSystem> s_pShaderSysInstace = nullptr;
+    static inline std::unique_ptr<VulkanShaderSystem> s_pShaderSysInstance = nullptr;
     static inline VkDevice s_pLogicalDevice = VK_NULL_HANDLE;
 
 private:

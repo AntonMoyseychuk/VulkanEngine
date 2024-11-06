@@ -14,7 +14,7 @@ namespace ds
             return INVALID_ID_HASH;
         }
 
-        const uint64_t id = s_hasher(str);
+        const uint64_t id = amHash(str);
 
         if (!IsExist(id)) {
             m_storage[id] = str;

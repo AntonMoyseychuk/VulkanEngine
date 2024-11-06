@@ -12,11 +12,11 @@ static constexpr size_t AM_SHADER_CACHE_SUBMITION_PREALLOCATION_SIZE = 4 << 20;
 bool VulkanShaderCache::Load(const fs::path& shaderCacheFilepath) noexcept
 {
     // Shader cache structure:
-    // 4 bytes - cache entries count
-    // Cache entries:
-    //      4 bytes - code size
-    //      8 bytes - hash
-    //    ... bytes - code
+    //      4 bytes - cache entries count
+    //      Cache entries:
+    //           4 bytes - code size
+    //           8 bytes - hash
+    //         ... bytes - code
     
     Clear();
 
