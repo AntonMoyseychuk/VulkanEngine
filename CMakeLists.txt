@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-project(vulkan_sandbox LANGUAGES CXX)
+project(engine LANGUAGES CXX)
 
 
 set(AM_PROJECT_SOURCE_DIR                   ${CMAKE_CURRENT_LIST_DIR})
@@ -53,10 +53,10 @@ file(GLOB_RECURSE PROJECT_SOURCE_FILES CONFIGURE_DEPENDS
     ${AM_PROJECT_CXX_SOURCE_CODE_DIR}/*.cpp
     ${AM_PROJECT_CXX_SOURCE_CODE_DIR}/*.c
 )
-add_executable(vulkan_sandbox ${PROJECT_SOURCE_FILES})
+add_executable(engine ${PROJECT_SOURCE_FILES})
 
 
-target_precompile_headers(vulkan_sandbox PRIVATE ${AM_PROJECT_CXX_SOURCE_CODE_DIR}/pch.h)
+target_precompile_headers(engine PRIVATE ${AM_PROJECT_CXX_SOURCE_CODE_DIR}/pch.h)
 
 
 set(SHADERC_ENABLE_SHARED_CRT ON)
@@ -74,7 +74,7 @@ else()
 endif()
 
 
-target_include_directories(vulkan_sandbox 
+target_include_directories(engine 
     PRIVATE ${AM_PROJECT_CXX_SOURCE_CODE_DIR}
 
     PRIVATE ${Vulkan_INCLUDE_DIRS}
@@ -85,17 +85,17 @@ target_include_directories(vulkan_sandbox
     PRIVATE ${spdlog_INCLUDE_DIRS})
 
 
-target_link_directories(vulkan_sandbox
+target_link_directories(engine
     PRIVATE ${spdlog_LIBRARY_DIRS})
 
-target_link_libraries(vulkan_sandbox 
+target_link_libraries(engine 
     PRIVATE Vulkan::Vulkan
     PRIVATE Vulkan::shaderc_combined
     PRIVATE glfw 
     PRIVATE nlohmann_json::nlohmann_json
     PRIVATE spdlog::spdlog)
 
-target_compile_definitions(vulkan_sandbox 
+target_compile_definitions(engine 
     PRIVATE AM_PROJECT_SOURCE_DIR="${AM_PROJECT_SOURCE_DIR}"
     PRIVATE AM_PROJECT_CXX_SOURCE_CODE_DIR="${AM_PROJECT_CXX_SOURCE_CODE_DIR}"
     PRIVATE AM_PROJECT_SHADERS_SOURCE_CODE_DIR="${AM_PROJECT_SHADERS_SOURCE_CODE_DIR}"

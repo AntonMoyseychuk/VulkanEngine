@@ -27,9 +27,9 @@ inline uint64_t amHashMem(const void* data, size_t size) noexcept
     
     while (remaining > 0) {
         hash ^= *ptr++;
-        hash *= 1103515245;
+        hash *= 1103515245ull;
         hash ^= *ptr++;
-        hash *= 1103515245;
+        hash *= 1103515245ull;
         remaining -= (int64_t)sizeof(uint64_t);
     }
 
@@ -38,7 +38,7 @@ inline uint64_t amHashMem(const void* data, size_t size) noexcept
 
     for (size_t i = 0; i < tailLength; ++i) {
         hash ^= static_cast<uint64_t>(tail[i]) << (i * 8);
-        hash *= 1103515245;
+        hash *= 1103515245ull;
     }
 
     return hash;
