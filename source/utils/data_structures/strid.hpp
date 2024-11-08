@@ -63,7 +63,7 @@ namespace ds
     
     
     template <typename ElemT>
-    inline const char *StrIDImpl<ElemT>::CStr() const noexcept
+    inline const ElemT* StrIDImpl<ElemT>::CStr() const noexcept
     {
         const StringType* pResult = s_storage.Load(m_id);
             

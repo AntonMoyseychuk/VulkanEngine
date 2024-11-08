@@ -50,7 +50,7 @@ struct VulkanShaderDefine
     bool IsPixel() const noexcept { return (shaderTypeMask & AM_PIXEL_SHADER_MASK) != 0; }
 
     std::string condition;
-    ds::StrID   name;
+    std::string name;
     uint32_t    shaderTypeMask = 0;
 };
 
@@ -290,7 +290,7 @@ static std::vector<uint8_t> BuildSPIRVCodeFormFile(const VulkanShaderGroupSetup&
     {
         for (size_t i = 0; i < defines.size(); ++i) {
             if (shaderId.IsDefineBit(i)) {
-                buildInfo.compileOptions.AddMacroDefinition(*defines[i]->name.String());
+                buildInfo.compileOptions.AddMacroDefinition(defines[i]->name);
             }
         }
     };

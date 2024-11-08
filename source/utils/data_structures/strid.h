@@ -63,7 +63,7 @@ namespace ds
         StrIDImpl& operator=(const StringType& str)     noexcept { return operator=(str.c_str()); }
         StrIDImpl& operator=(const StringViewType& str) noexcept { return operator=(str.data()); }
 
-        const char* CStr() const noexcept;
+        const ElementType* CStr() const noexcept;
 
         const StringType* String() const noexcept { return s_storage.Load(m_id); }
 
