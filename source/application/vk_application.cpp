@@ -1930,9 +1930,9 @@ bool VulkanApplication::InitVulkan() noexcept
 
     const float vulkanInitTime = vulkanInitTimer.GetElapsedTime();
 
+#if defined(AM_LOGGING_ENABLED)
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan initialization finished ({} ms)"), vulkanInitTime);
-
-#if defined(AM_RELEASE)
+#else
     fprintf_s(stdout, "Vulkan initialization finished (%f ms)\n", vulkanInitTime);
 #endif
 

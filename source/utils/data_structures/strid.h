@@ -38,7 +38,14 @@ namespace ds
         static inline constexpr size_t PREALLOCATED_IDS_COUNT = 2048;
 
     private:
-        std::unordered_map<uint64_t, StringType> m_storage;
+        // We generate a unique hash in the Store method, and we don't want to hash the already unique value again, 
+        // so we use a proxy hasher
+        struct StringIdHasher
+        {
+            inline constexpr uint64_t operator()(uint64_t id) const noexcept { return id; }
+        };
+
+        std::unordered_map<uint64_t, StringType, StringIdHasher> m_storage;
     };
 
 
