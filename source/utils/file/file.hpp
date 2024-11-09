@@ -1,6 +1,3 @@
-#include "file.h"
-
-
 template <typename Func>
 inline void ForEachDirectory(const fs::path& rootDir, const Func& func, uint32_t dirTreeDepth) noexcept
 {
