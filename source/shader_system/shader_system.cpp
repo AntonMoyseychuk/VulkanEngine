@@ -518,10 +518,11 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     size_t totalShaderCombinations = 0;
 
     for (const VulkanShaderGroupFilepaths& groupFilepaths : shaderGroupFilepathsList) {
-        setups.emplace_back(VulkanShaderGroupSetup::ParseJSON(fs::path(groupFilepaths.setupFilepath.CStr())));
+        VulkanShaderGroupSetup setup = VulkanShaderGroupSetup::ParseJSON(fs::path(groupFilepaths.setupFilepath.CStr()));
+        
+        totalShaderCombinations += setup.GetVSDefinesCombinationsCount() + setup.GetPSDefinesCombinationsCount();
 
-        totalShaderCombinations += setups.rbegin()->GetVSDefinesCombinationsCount();
-        totalShaderCombinations += setups.rbegin()->GetPSDefinesCombinationsCount();
+        setups.emplace_back(setup);
     }
 
     ClearVulkanShaderModules();
@@ -559,11 +560,10 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     for (size_t i = 0; i < setups.size(); ++i) {
         const VulkanShaderGroupSetup& setup = setups[i];
 
-        const auto& vsDefines = setup.GetVSDefines();
-        needToSubmitShaderCache = CreateAllCombinationsShaderModules(setup, vsDefines, shaderGroupFilepathsList[i].vsFilepath, forceRecompile) || needToSubmitShaderCache;
-        
-        const auto& psDefines = setup.GetPSDefines();
-        needToSubmitShaderCache = CreateAllCombinationsShaderModules(setup, psDefines, shaderGroupFilepathsList[i].psFilepath, forceRecompile) || needToSubmitShaderCache;
+        const bool newVsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetVSDefines(), shaderGroupFilepathsList[i].vsFilepath, forceRecompile);
+        const bool newPsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetPSDefines(), shaderGroupFilepathsList[i].psFilepath, forceRecompile);
+
+        needToSubmitShaderCache = needToSubmitShaderCache || newVsCombinations || newPsCombinations;
     }
 
     if (needToSubmitShaderCache) {
