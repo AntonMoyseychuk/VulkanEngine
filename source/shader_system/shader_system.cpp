@@ -60,11 +60,11 @@ class VulkanShaderGroupSetup
 public:
     VulkanShaderGroupSetup(const fs::path& jsonFilepath);
 
-    size_t GetVSDefinesCombinationsCount() const noexcept { return GetShaderDefineCombinationsCount(m_vsDefinesPtrs.size()); }
-    size_t GetPSDefinesCombinationsCount() const noexcept { return GetShaderDefineCombinationsCount(m_psDefinesPtrs.size()); }
+    size_t GetVSDefinesCombinationsCount() const noexcept { return GetShaderDefineCombinationsCount(m_vsDefinesIndices.size()); }
+    size_t GetPSDefinesCombinationsCount() const noexcept { return GetShaderDefineCombinationsCount(m_psDefinesIndices.size()); }
 
-    const std::vector<const VulkanShaderDefine*>& GetVSDefines() const noexcept { return m_vsDefinesPtrs; }
-    const std::vector<const VulkanShaderDefine*>& GetPSDefines() const noexcept { return m_psDefinesPtrs; }
+    const std::vector<size_t>& GetVSDefinesIndices() const noexcept { return m_vsDefinesIndices; }
+    const std::vector<size_t>& GetPSDefinesIndices() const noexcept { return m_psDefinesIndices; }
 
     const std::vector<VulkanShaderDefine>& GetDefines() const noexcept { return m_defines; }
 
@@ -79,8 +79,8 @@ private:
 private:
     std::vector<VulkanShaderDefine> m_defines;
 
-    std::vector<const VulkanShaderDefine*> m_vsDefinesPtrs;
-    std::vector<const VulkanShaderDefine*> m_psDefinesPtrs;
+    std::vector<size_t> m_vsDefinesIndices;
+    std::vector<size_t> m_psDefinesIndices;
 };
 
 
@@ -286,22 +286,26 @@ static std::vector<uint8_t> BuildSPIRVCodeFormFile(const VulkanShaderGroupSetup&
 
     buildInfo.compileOptions.SetOptimizationLevel(ShaderIdOptimizationLevelToShadercLevel(shaderId.GetOptimizationLevel()));
 
-    const auto FillCompileOptionsDefines = [&shaderId, &buildInfo](const std::vector<const VulkanShaderDefine*>& defines)
+    const auto FillCompileOptionsDefines = [&shaderId, &buildInfo](const std::vector<VulkanShaderDefine>& definesPool, const std::vector<size_t>& indices)
     {
-        for (size_t i = 0; i < defines.size(); ++i) {
-            if (shaderId.IsDefineBit(i)) {
-                buildInfo.compileOptions.AddMacroDefinition(defines[i]->name);
+        AM_ASSERT_GRAPHICS_API(indices.size() <= definesPool.size(), "");
+
+        for (size_t index : indices) {
+            AM_ASSERT_GRAPHICS_API(index < definesPool.size(), "Invalid define index ({})", index);
+            
+            if (shaderId.IsDefineBit(index)) {
+                buildInfo.compileOptions.AddMacroDefinition(definesPool[index].name);
             }
         }
     };
     
     switch (buildInfo.kind) {
         case shaderc_vertex_shader:
-            FillCompileOptionsDefines(setup.GetVSDefines());
+            FillCompileOptionsDefines(setup.GetDefines(), setup.GetVSDefinesIndices());
             break;
 
         case shaderc_fragment_shader:
-            FillCompileOptionsDefines(setup.GetPSDefines());
+            FillCompileOptionsDefines(setup.GetDefines(), setup.GetPSDefinesIndices());
             break;
 
         default:
@@ -530,7 +534,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     m_shaderModules.reserve(totalShaderCombinations);
 
     const auto CreateAllCombinationsShaderModules = [this](const VulkanShaderGroupSetup& setup, 
-        const std::vector<const VulkanShaderDefine*>& defines, ds::StrID shaderFilepath, bool forceRecompile) -> bool
+        const std::vector<size_t>& indices, ds::StrID shaderFilepath, bool forceRecompile) -> bool
     {
         ShaderID shaderId(shaderFilepath, {}, AM_SHADERC_OPTIMIZATION_LEVEL);
 
@@ -540,11 +544,11 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
             newShaderCacheEntry = BuildAndAddShaderModule(&setup, shaderId) || newShaderCacheEntry;
         }
 
-        for (size_t j = 0; j < defines.size(); ++j) {
+        for (size_t i = 0; i < indices.size(); ++i) {
             shaderId.ClearBits();
 
-            for (size_t k = j; k < defines.size(); ++k) {
-                shaderId.SetDefineBit(k);
+            for (size_t j = i; j < indices.size(); ++j) {
+                shaderId.SetDefineBit(indices[j]);
 
                 if (forceRecompile || !LoadAndAddShaderModule(shaderId)) {
                     newShaderCacheEntry = BuildAndAddShaderModule(&setup, shaderId) || newShaderCacheEntry;
@@ -560,8 +564,8 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     for (size_t i = 0; i < setups.size(); ++i) {
         const VulkanShaderGroupSetup& setup = setups[i];
 
-        const bool newVsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetVSDefines(), shaderGroupFilepathsList[i].vsFilepath, forceRecompile);
-        const bool newPsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetPSDefines(), shaderGroupFilepathsList[i].psFilepath, forceRecompile);
+        const bool newVsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetVSDefinesIndices(), shaderGroupFilepathsList[i].vsFilepath, forceRecompile);
+        const bool newPsCombinations = CreateAllCombinationsShaderModules(setup, setup.GetPSDefinesIndices(), shaderGroupFilepathsList[i].psFilepath, forceRecompile);
 
         needToSubmitShaderCache = needToSubmitShaderCache || newVsCombinations || newPsCombinations;
     }
@@ -572,11 +576,11 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
 }
 
 
-bool VulkanShaderSystem::BuildAndAddShaderModule(const void* pSetup, const ShaderID &shaderId) noexcept
+bool VulkanShaderSystem::BuildAndAddShaderModule(const VulkanShaderGroupSetup* pSetup, const ShaderID &shaderId) noexcept
 {
-    const VulkanShaderGroupSetup& setup = *(const VulkanShaderGroupSetup*)pSetup;
+    AM_ASSERT_GRAPHICS_API(pSetup, "pSetup is nullptr");
 
-    const std::vector<uint8_t> spirvCode = BuildSPIRVCodeFormFile(setup, shaderId);
+    const std::vector<uint8_t> spirvCode = BuildSPIRVCodeFormFile(*pSetup, shaderId);
 
     VkShaderModule pShaderModule = CreateVulkanShaderModule(s_pLogicalDevice, (const uint32_t*)spirvCode.data(), spirvCode.size());
 
@@ -629,8 +633,10 @@ VulkanShaderGroupSetup::VulkanShaderGroupSetup(const fs::path &jsonFilepath)
     }
 
     m_defines.reserve(definesCount);
-    m_vsDefinesPtrs.reserve(definesCount);
-    m_psDefinesPtrs.reserve(definesCount);
+    m_vsDefinesIndices.reserve(definesCount);
+    m_psDefinesIndices.reserve(definesCount);
+
+    size_t defineIndex = 0;
 
     for (const auto& [defineName, defineDescJson] : definesJson.items()) {
         VulkanShaderDefine define = {};
@@ -655,12 +661,14 @@ VulkanShaderGroupSetup::VulkanShaderGroupSetup(const fs::path &jsonFilepath)
         m_defines.emplace_back(define);
         
         if (isVertex) {
-            m_vsDefinesPtrs.emplace_back(&(*m_defines.rbegin()));
+            m_vsDefinesIndices.emplace_back(defineIndex);
         }
 
         if (isPixel) {
-            m_psDefinesPtrs.emplace_back(&(*m_defines.rbegin()));
+            m_psDefinesIndices.emplace_back(defineIndex);
         }
+
+        ++defineIndex;
     }
 }
 

@@ -11,6 +11,9 @@
 #include <memory>
 
 
+class VulkanShaderGroupSetup;
+
+
 class VulkanShaderSystem
 {
     friend class VulkanApplication;
@@ -52,7 +55,7 @@ private:
 
     // Creates shader module from file
     // Writes compiled code to shader cache
-    bool BuildAndAddShaderModule(const void* pSetup, const ShaderID& shaderId) noexcept;
+    bool BuildAndAddShaderModule(const VulkanShaderGroupSetup* pSetup, const ShaderID& shaderId) noexcept;
 
     // Creates shader module from shader cache
     bool LoadAndAddShaderModule(const ShaderID& shaderId) noexcept;
