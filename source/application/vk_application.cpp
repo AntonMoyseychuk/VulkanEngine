@@ -243,74 +243,6 @@ static std::string MakeVulkanObjectsListString(const std::vector<VkObjT>& object
 }
 
 
-AM_MAYBE_UNUSED static std::vector<std::string> GetVulkanInstanceValidationLayers(const nlohmann::json& vkInstanceBuildJson, const char* pNodeName) noexcept
-{
-    std::vector<std::string> requestedLayers = amjson::ParseJsonSubNodeToArray<std::string>(vkInstanceBuildJson, pNodeName);
-
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanObjectsListString(availableLayers));
-    
-    std::vector<std::string> result;
-    result.reserve(requestedLayers.size());
-
-    for (const std::string& requestedLayer : requestedLayers) {
-        const auto FindPred = [&requestedLayer](const VkLayerProperties& prop) {
-            return requestedLayer == prop.layerName;
-        };
-
-        if (std::find_if(availableLayers.cbegin(), availableLayers.cend(), FindPred) != availableLayers.cend()) {
-            result.emplace_back(requestedLayer);
-        } else {
-            AM_LOG_GRAPHICS_API_ERROR("Requested {} Vulkan validation layer in not found", requestedLayer);
-        }
-    }
-
-    result.shrink_to_fit();
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan validation layers:\n{}", MakeVulkanObjectsListString(result));
-
-    return result;
-}
-
-
-static std::vector<std::string> GetVulkanInstanceExtensions(const nlohmann::json& vkInstanceBuildJson, const char* pNodeName) noexcept
-{
-    std::vector<std::string> requestedExtensions = amjson::ParseJsonSubNodeToArray<std::string>(vkInstanceBuildJson, pNodeName);
-
-    uint32_t availableVulkanExtCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableVkExtensions(availableVulkanExtCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanExtCount, availableVkExtensions.data());
-
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(availableVkExtensions));
-    
-    std::vector<std::string> result;
-    result.reserve(requestedExtensions.size());
-
-    for (const std::string& requestedExtension : requestedExtensions) {
-        const auto FindPred = [&requestedExtension](const VkExtensionProperties& prop) {
-            return requestedExtension == prop.extensionName;
-        };
-
-        if (std::find_if(availableVkExtensions.cbegin(), availableVkExtensions.cend(), FindPred) != availableVkExtensions.cend()) {
-            result.emplace_back(requestedExtension);
-        } else {
-            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan extension in not found. Skipped", requestedExtension);
-        }
-    }
-
-    result.shrink_to_fit();
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(result));
-
-    return result;
-}
-
-
 static bool CheckVulkanLogicalDeviceExtensionSupport(const VulkanPhysicalDevice& physicalDevice, const char* const* requiredExtensions, size_t requiredExtensionCount) noexcept
 {
     AM_ASSERT_GRAPHICS_API(physicalDevice.pDevice != VK_NULL_HANDLE, "Invalid Vulkan physical device handle");
@@ -777,6 +709,10 @@ bool VulkanApplication::IsInitialized() noexcept
 void VulkanApplication::Run() noexcept
 {
     while(!glfwWindowShouldClose(s_pGLFWWindow)) {
+        if (glfwGetKey(s_pGLFWWindow, GLFW_KEY_F6) == GLFW_PRESS) {
+            VulkanShaderSystem::Instance().RecompileShaders();
+        }
+
         glfwPollEvents();
         RenderFrame();
     }
@@ -882,11 +818,8 @@ bool VulkanApplication::InitVulkanInstance() noexcept
     VkInstanceCreateInfo instCreateInfo = {};
     instCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instCreateInfo.pApplicationInfo = &appInfo;
-    instCreateInfo.enabledLayerCount = 0;
-    instCreateInfo.ppEnabledLayerNames = nullptr;
-    instCreateInfo.ppEnabledExtensionNames = nullptr;
 
-    static constexpr const char* vulkanInstanceExtensions[] = {
+    static constexpr const char* VULKAN_INST_REQUIRED_EXTENSIONS[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
     
     #if defined(AM_OS_WINDOWS)
@@ -897,19 +830,83 @@ bool VulkanApplication::InitVulkanInstance() noexcept
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
     #endif
     };
-    
-    instCreateInfo.ppEnabledExtensionNames = vulkanInstanceExtensions;
-    instCreateInfo.enabledExtensionCount = _countof(vulkanInstanceExtensions);
+
+    static constexpr size_t VULKAN_INST_REQUIRED_EXTENSIONS_COUNT = _countof(VULKAN_INST_REQUIRED_EXTENSIONS);
+
+    uint32_t availableVulkanInstExtCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableVulkanInstExtensions(availableVulkanInstExtCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, availableVulkanInstExtensions.data());
+
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(availableVulkanInstExtensions).c_str());
+
+    bool allReqExtSuported = true;
+    for (size_t i = 0; i < VULKAN_INST_REQUIRED_EXTENSIONS_COUNT; ++i) {
+        const char* pRequestedExt = VULKAN_INST_REQUIRED_EXTENSIONS[i];
+
+        const auto FindPred = [pRequestedExt](const VkExtensionProperties& prop) { return strcmp(pRequestedExt, prop.extensionName) == 0; };
+
+        if (std::find_if(availableVulkanInstExtensions.cbegin(), availableVulkanInstExtensions.cend(), FindPred) == availableVulkanInstExtensions.cend()) {
+        #if defined(AM_LOGGING_ENABLED)
+            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan instance extension in not found", pRequestedExt);
+            allReqExtSuported = false;
+        #else
+            return false; // if AM_LOGGING_ENABLED is not defined than there is no any reason to check other extensions, just return false
+        #endif
+        }
+    }
+
+    if (!allReqExtSuported) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Not all required Vulkan instance extensions are supported");
+        return false;
+    }
+
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan instance extensions:\n{}", 
+        MakeVulkanObjectsListString(VULKAN_INST_REQUIRED_EXTENSIONS, VULKAN_INST_REQUIRED_EXTENSIONS_COUNT).c_str());
+
+    instCreateInfo.ppEnabledExtensionNames = VULKAN_INST_REQUIRED_EXTENSIONS;
+    instCreateInfo.enabledExtensionCount = VULKAN_INST_REQUIRED_EXTENSIONS_COUNT;
     
     VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = {};
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    static constexpr const char* vulkanInstanceValidationLayers[] = {
+    static constexpr const char* VULKAN_INST_REQUIRED_VALIDATION_LAYERS[] = {
         "VK_LAYER_KHRONOS_validation",
     };
 
-    instCreateInfo.ppEnabledLayerNames = vulkanInstanceValidationLayers;
-    instCreateInfo.enabledLayerCount = _countof(vulkanInstanceValidationLayers);
+    static constexpr size_t VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT = _countof(VULKAN_INST_REQUIRED_VALIDATION_LAYERS);
+
+    uint32_t availableLayerCount;
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
+
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanObjectsListString(availableLayers).c_str());
+
+    bool allReqValidationLayersSuported = true;
+    for (size_t i = 0; i < VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT; ++i) {
+        const char* pRequestedLayer = VULKAN_INST_REQUIRED_VALIDATION_LAYERS[i];
+
+        const auto FindPred = [pRequestedLayer](const VkLayerProperties& prop) { return strcmp(pRequestedLayer, prop.layerName) == 0; };
+
+        if (std::find_if(availableLayers.cbegin(), availableLayers.cend(), FindPred) == availableLayers.cend()) {
+            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan validation layer in not found", pRequestedLayer);
+            allReqValidationLayersSuported = false;
+        }
+    }
+
+    if (!allReqValidationLayersSuported) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Not all required validation layers are supported");
+        return false;
+    }
+
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan validation layers:\n{}", 
+        MakeVulkanObjectsListString(VULKAN_INST_REQUIRED_VALIDATION_LAYERS, VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT).c_str());
+
+    instCreateInfo.ppEnabledLayerNames = VULKAN_INST_REQUIRED_VALIDATION_LAYERS;
+    instCreateInfo.enabledLayerCount = VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT;
     
     vulkanDebugMessangerCreateInfo = CreateVkDebugUtilsMessengerCreateInfo();
     
