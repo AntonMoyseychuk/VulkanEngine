@@ -47,9 +47,9 @@ static std::optional<VulkanAppInitInfo> ParseAppInitInfoJson(const fs::path& pat
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    auto pFunc = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (pFunc != nullptr) {
+        return pFunc(instance, pCreateInfo, pAllocator, pDebugMessenger);
     } else {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
@@ -57,9 +57,9 @@ static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugU
 
 
 static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
+    auto pFunc = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (pFunc != nullptr) {
+        pFunc(instance, debugMessenger, pAllocator);
     }
 }
 
@@ -110,50 +110,51 @@ static VkDebugUtilsMessengerCreateInfoEXT CreateVkDebugUtilsMessengerCreateInfo(
 
 static inline std::string GetVulkanFlagsDesc(const VkSurfaceTransformFlagBitsKHR& transformBits) noexcept
 {
-    std::string result = "";
+    std::stringstream ss;
 
     if (transformBits & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
     if (transformBits & VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
+        ss << AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
     }
 
-    if (transformBits & VK_SURFACE_TRANSFORM_FLAG_BITS_MAX_ENUM_KHR) {
-        result += AM_OUTPUT_COLOR_YELLOW_ASCII_CODE "VK_SURFACE_TRANSFORM_FLAG_BITS_MAX_ENUM_KHR" AM_OUTPUT_COLOR_RESET_ASCII_CODE " | ";
-    }
+    std::string result = ss.str();
+    
+    static constexpr size_t TRIM_END_SIZE = sizeof(" | ") - 1;
 
-    if (!result.empty()) {
-        result.resize(result.size() - sizeof(" | ") + 1);
+    const size_t resultSize = result.size();
+    if (resultSize > TRIM_END_SIZE) {
+        result.resize(resultSize - TRIM_END_SIZE);
     }
 
     return result;
@@ -240,6 +241,66 @@ template<typename VkObjT>
 static std::string MakeVulkanObjectsListString(const std::vector<VkObjT>& objects) noexcept
 {
     return MakeVulkanObjectsListString(objects.data(), objects.size());
+}
+
+
+static bool CheckVulkanInstanceExtensionsSupport(const char* const* pExtensions, size_t extensionCount)
+{
+    uint32_t availableVulkanInstExtCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableVulkanInstExtensions(availableVulkanInstExtCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, availableVulkanInstExtensions.data());
+
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(availableVulkanInstExtensions).c_str());
+
+    bool allReqExtSuported = true;
+    for (size_t i = 0; i < extensionCount; ++i) {
+        const char* pRequestedExt = pExtensions[i];
+
+        const auto FindPred = [pRequestedExt](const VkExtensionProperties& prop) { return strcmp(pRequestedExt, prop.extensionName) == 0; };
+
+        if (std::find_if(availableVulkanInstExtensions.cbegin(), availableVulkanInstExtensions.cend(), FindPred) == availableVulkanInstExtensions.cend()) {
+        #if defined(AM_LOGGING_ENABLED)
+            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan instance extension in not found", pRequestedExt);
+            allReqExtSuported = false;
+        #else
+            return false; // if AM_LOGGING_ENABLED is not defined than there is no any reason to check other extensions, just return false
+        #endif
+        }
+    }
+
+    return allReqExtSuported;
+}
+
+
+AM_MAYBE_UNUSED static bool CheckVulkanInstanceValidationLayersSupport(const char* const* pLayers, size_t layersCount)
+{
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    uint32_t availableLayerCount;
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
+
+    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanObjectsListString(availableLayers).c_str());
+
+    bool allReqValidationLayersSuported = true;
+    for (size_t i = 0; i < layersCount; ++i) {
+        const char* pRequestedLayer = pLayers[i];
+
+        const auto FindPred = [pRequestedLayer](const VkLayerProperties& prop) { return strcmp(pRequestedLayer, prop.layerName) == 0; };
+
+        if (std::find_if(availableLayers.cbegin(), availableLayers.cend(), FindPred) == availableLayers.cend()) {
+            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan validation layer in not found", pRequestedLayer);
+            allReqValidationLayersSuported = false;
+        }
+    }
+
+    return allReqValidationLayersSuported;
+#else
+    return true;
+#endif
 }
 
 
@@ -478,20 +539,17 @@ static void PrintPhysicalDeviceFeatures(const VulkanPhysicalDevice& device) noex
 }
 
 
-static VulkanQueueFamilyIndices FindRequiredVulkanQueueFamilyIndices(VkPhysicalDevice pPhysicalDevice, VkSurfaceKHR pSurface) noexcept
+static VulkanQueueFamilyIndices FindRequiredVulkanQueueFamilyIndices(VulkanPhysicalDevice& physicalDevice, VkSurfaceKHR pSurface) noexcept
 {
-    if (pPhysicalDevice == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE pPhysicalDevice passed to {}", __FUNCTION__);
-        return {};
-    }
-
-    VulkanQueueFamilyIndices indices;
+    VkPhysicalDevice pPhysicalDevice = physicalDevice.pDevice;
 
     uint32_t physDeviceQueueFamiliesCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(pPhysicalDevice, &physDeviceQueueFamiliesCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> physDeviceQueueFamilies(physDeviceQueueFamiliesCount);
     vkGetPhysicalDeviceQueueFamilyProperties(pPhysicalDevice, &physDeviceQueueFamiliesCount, physDeviceQueueFamilies.data());
+
+    VulkanQueueFamilyIndices indices;
 
     for (int32_t i = 0; i < physDeviceQueueFamilies.size(); ++i) {
         const VkQueueFamilyProperties& familyProps = physDeviceQueueFamilies[i];
@@ -519,7 +577,12 @@ static VulkanQueueFamilyIndices FindRequiredVulkanQueueFamilyIndices(VkPhysicalD
 static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPhysicalDevice, VkSurfaceKHR pSurface) noexcept
 {
     if (pPhysicalDevice == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE pPhysicalDevice passed to {}", __FUNCTION__);
+        AM_LOG_GRAPHICS_API_WARN("pPhysicalDevice is VK_NULL_HANDLE");
+        return {};
+    }
+
+    if (pSurface == VK_NULL_HANDLE) {
+        AM_LOG_GRAPHICS_API_WARN("pSurface is VK_NULL_HANDLE");
         return {};
     }
 
@@ -532,7 +595,7 @@ static VulkanPhysicalDevice GetVulkanPhysicalDeviceInternal(VkPhysicalDevice pPh
     vkGetPhysicalDeviceFeatures(pPhysicalDevice, &device.features);
     PrintPhysicalDeviceFeatures(device);
 
-    device.queueFamilyIndices = FindRequiredVulkanQueueFamilyIndices(pPhysicalDevice, pSurface);
+    device.queueFamilyIndices = FindRequiredVulkanQueueFamilyIndices(device, pSurface);
 
     return device;
 }
@@ -833,31 +896,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
 
     static constexpr size_t VULKAN_INST_REQUIRED_EXTENSIONS_COUNT = _countof(VULKAN_INST_REQUIRED_EXTENSIONS);
 
-    uint32_t availableVulkanInstExtCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableVulkanInstExtensions(availableVulkanInstExtCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &availableVulkanInstExtCount, availableVulkanInstExtensions.data());
-
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan instance extensions:\n{}", MakeVulkanObjectsListString(availableVulkanInstExtensions).c_str());
-
-    bool allReqExtSuported = true;
-    for (size_t i = 0; i < VULKAN_INST_REQUIRED_EXTENSIONS_COUNT; ++i) {
-        const char* pRequestedExt = VULKAN_INST_REQUIRED_EXTENSIONS[i];
-
-        const auto FindPred = [pRequestedExt](const VkExtensionProperties& prop) { return strcmp(pRequestedExt, prop.extensionName) == 0; };
-
-        if (std::find_if(availableVulkanInstExtensions.cbegin(), availableVulkanInstExtensions.cend(), FindPred) == availableVulkanInstExtensions.cend()) {
-        #if defined(AM_LOGGING_ENABLED)
-            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan instance extension in not found", pRequestedExt);
-            allReqExtSuported = false;
-        #else
-            return false; // if AM_LOGGING_ENABLED is not defined than there is no any reason to check other extensions, just return false
-        #endif
-        }
-    }
-
-    if (!allReqExtSuported) {
+    if (!CheckVulkanInstanceExtensionsSupport(VULKAN_INST_REQUIRED_EXTENSIONS, VULKAN_INST_REQUIRED_EXTENSIONS_COUNT)) {
         AM_ASSERT_GRAPHICS_API_FAIL("Not all required Vulkan instance extensions are supported");
         return false;
     }
@@ -877,27 +916,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
 
     static constexpr size_t VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT = _countof(VULKAN_INST_REQUIRED_VALIDATION_LAYERS);
 
-    uint32_t availableLayerCount;
-    vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
-    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
-
-    AM_LOG_GRAPHICS_API_INFO("Available Vulkan validation layers:\n{}", MakeVulkanObjectsListString(availableLayers).c_str());
-
-    bool allReqValidationLayersSuported = true;
-    for (size_t i = 0; i < VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT; ++i) {
-        const char* pRequestedLayer = VULKAN_INST_REQUIRED_VALIDATION_LAYERS[i];
-
-        const auto FindPred = [pRequestedLayer](const VkLayerProperties& prop) { return strcmp(pRequestedLayer, prop.layerName) == 0; };
-
-        if (std::find_if(availableLayers.cbegin(), availableLayers.cend(), FindPred) == availableLayers.cend()) {
-            AM_LOG_GRAPHICS_API_WARN("Requested {} Vulkan validation layer in not found", pRequestedLayer);
-            allReqValidationLayersSuported = false;
-        }
-    }
-
-    if (!allReqValidationLayersSuported) {
+    if (!CheckVulkanInstanceValidationLayersSupport(VULKAN_INST_REQUIRED_VALIDATION_LAYERS, VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT)) {
         AM_ASSERT_GRAPHICS_API_FAIL("Not all required validation layers are supported");
         return false;
     }
@@ -942,12 +961,12 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
 
 bool VulkanApplication::InitVulkanSurface() noexcept
 {
+#if defined(AM_OS_WINDOWS)
     if (IsVulkanSurfaceInitialized()) {
         AM_LOG_WARN("Vulkan surface is already initialized");
         return true;
     }
-
-#if defined(AM_OS_WINDOWS)
+    
     if (!IsGLFWWindowCreated()) {
         AM_ASSERT_FAIL("GLFW window is not created. Create it before {}", __FUNCTION__);
         return false;
@@ -1067,7 +1086,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
     s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
-    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Picked {} physical device\n"), s_pVulkanState->physicalDevice.properties.deviceName);
+    AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Picked {} physical device\n"), s_pVulkanState->physicalDevice.properties.deviceName);
     
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan physical device initialization finished"));
     return true;
@@ -1097,17 +1116,17 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
     const VulkanPhysicalDevice& physicalDevice         = s_pVulkanState->physicalDevice;
     const VulkanQueueFamilyIndices& queueFamilyIndices = physicalDevice.queueFamilyIndices;
 
-    static constexpr const char* vulkanLogicalDeviceExtensions[] = {
+    static constexpr const char* VULKAN_LOGICAL_DEVICE_EXTENSIONS[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    static constexpr size_t vulkanLogicalDeviceExtensionCount = _countof(vulkanLogicalDeviceExtensions);
+    static constexpr size_t VULKAN_LOGICAL_DEVICE_EXTENSIONS_COUNT = _countof(VULKAN_LOGICAL_DEVICE_EXTENSIONS);
 
-    if (!CheckVulkanLogicalDeviceExtensionSupport(physicalDevice, vulkanLogicalDeviceExtensions, vulkanLogicalDeviceExtensionCount)) {
+    if (!CheckVulkanLogicalDeviceExtensionSupport(physicalDevice, VULKAN_LOGICAL_DEVICE_EXTENSIONS, VULKAN_LOGICAL_DEVICE_EXTENSIONS_COUNT)) {
         return false;
     }
 
-    AM_LOG_GRAPHICS_API_INFO("Included Vulkan logical device extensions:\n{}", MakeVulkanObjectsListString(vulkanLogicalDeviceExtensions, vulkanLogicalDeviceExtensionCount));
+    AM_LOG_GRAPHICS_API_INFO("Included Vulkan logical device extensions:\n{}", MakeVulkanObjectsListString(VULKAN_LOGICAL_DEVICE_EXTENSIONS, VULKAN_LOGICAL_DEVICE_EXTENSIONS_COUNT));
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1118,36 +1137,40 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
 //     createInfo.ppEnabledLayerNames = createInfo.enabledLayerCount ? s_pVulkanState->intance.validationLayers.data() : nullptr;
 // #endif
 
-    createInfo.ppEnabledExtensionNames = vulkanLogicalDeviceExtensions;
-    createInfo.enabledExtensionCount = vulkanLogicalDeviceExtensionCount;
-    
+    createInfo.ppEnabledExtensionNames = VULKAN_LOGICAL_DEVICE_EXTENSIONS;
+    createInfo.enabledExtensionCount = VULKAN_LOGICAL_DEVICE_EXTENSIONS_COUNT;
 
-    static constexpr std::array<float, VulkanQueueFamilyIndices::COUNT> deviceQueuePriorities = {
+    static constexpr float VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[VulkanQueueFamilyIndices::COUNT] = {
         1.0f, 1.0f
     };
 
     std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfos;
+    
+    const auto CreateVulkanDeviceQueueCreateInfo = [](uint32_t queueFamilyIndex, const float* pPriority) -> VkDeviceQueueCreateInfo
+    {
+        VkDeviceQueueCreateInfo queueCreateInfo = {};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = pPriority;
+
+        return queueCreateInfo;
+    };
 
     if (queueFamilyIndices.graphicsIndex != queueFamilyIndices.presentIndex) {
         deviceQueueCreateInfos.reserve(VulkanQueueFamilyIndices::COUNT);
 
         for (size_t i = 0; i < VulkanQueueFamilyIndices::COUNT; ++i) {
-            VkDeviceQueueCreateInfo queueCreateInfo = {};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamilyIndices.indices[i];
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &deviceQueuePriorities[i];
+            const VkDeviceQueueCreateInfo queueCreateInfo = CreateVulkanDeviceQueueCreateInfo(
+                queueFamilyIndices.indices[i], &VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[i]);
 
             deviceQueueCreateInfos.emplace_back(queueCreateInfo);
         }
     } else {
-        deviceQueueCreateInfos.reserve(1);
+        deviceQueueCreateInfos.reserve(VulkanQueueFamilyIndices::COUNT - 1);
 
-        VkDeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamilyIndices.graphicsIndex;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &deviceQueuePriorities[VulkanQueueFamilyIndices::GRAPHICS_INDEX];
+        const VkDeviceQueueCreateInfo queueCreateInfo = CreateVulkanDeviceQueueCreateInfo(
+            queueFamilyIndices.graphicsIndex, &VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[VulkanQueueFamilyIndices::GRAPHICS_INDEX]);
 
         deviceQueueCreateInfos.emplace_back(queueCreateInfo);
     }
@@ -1771,7 +1794,7 @@ bool VulkanApplication::InitVulkanCommandBuffers() noexcept
     commandBufAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     commandBufAllocateInfo.commandBufferCount = commandBuffArray.size();
 
-    VkCommandBuffer* commandBuffers[commandBuffArray.size()];
+    VkCommandBuffer* commandBuffers[MAX_FRAMES_IN_FLIGHT];
     for (size_t i = 0; i < commandBuffArray.size(); ++i) {
         commandBuffers[i] = &commandBuffArray[i].pBuffer;
     }

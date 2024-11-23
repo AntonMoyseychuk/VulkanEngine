@@ -2,7 +2,6 @@
 
 #if defined(_WIN32) || defined(_WIN64)
   #define AM_OS_WINDOWS
-  #define NOMINMAX
 #else
   #error Currently, only Windows is supported
 #endif
