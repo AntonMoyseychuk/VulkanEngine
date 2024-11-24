@@ -22,6 +22,9 @@ static constexpr const char* JSON_APP_CONFIG_WINDOW_HEIGHT_FIELD_NAME = "height"
 static constexpr const char* JSON_APP_CONFIG_WINDOW_RESIZABLE_FLAG_FIELD_NAME = "resizable";
 
 
+static constexpr float AM_DEFAULT_QUEUE_PRIORITY = 1.0f;
+
+
 static std::optional<VulkanAppInitInfo> ParseAppInitInfoJson(const fs::path& pathToJson) noexcept
 {
     using namespace amjson;
@@ -622,12 +625,12 @@ static uint64_t GetVulkanPhysicalDevicePriority(const VulkanPhysicalDevice& devi
 static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysicalDevice& device, const VulkanSurface& surface) noexcept
 {
     if (device.pDevice == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE device.pDevice passed to {}", __FUNCTION__);
+        AM_LOG_GRAPHICS_API_WARN("device.pDevice is VK_NULL_HANDLE");
         return {};
     }
 
     if (surface.pSurface == VK_NULL_HANDLE) {
-        AM_LOG_GRAPHICS_API_WARN("VK_NULL_HANDLE surface.pSurface passed to {}", __FUNCTION__);
+        AM_LOG_GRAPHICS_API_WARN("surface.pSurface is VK_NULL_HANDLE");
         return {};
     }
 
@@ -651,7 +654,7 @@ static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysi
     vkGetPhysicalDeviceSurfacePresentModesKHR(device.pDevice, surface.pSurface, &presentModesCount, nullptr);
 
     if (presentModesCount == 0) {
-        AM_ASSERT_GRAPHICS_API_FAIL("There are no any available physical device surface formats");
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any available physical device surface present modes");
         return {};
     }
 
@@ -662,7 +665,7 @@ static VulkanSwapChainDesc GetVulkanSwapChainDeviceSurfaceDesc(const VulkanPhysi
 }
 
 
-const VkSurfaceFormatKHR& PickSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) noexcept
+static const VkSurfaceFormatKHR& PickSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) noexcept
 {
     // Create configuration file node for this in future
     for (const VkSurfaceFormatKHR& format : availableFormats) {
@@ -675,7 +678,7 @@ const VkSurfaceFormatKHR& PickSwapChainSurfaceFormat(const std::vector<VkSurface
 }
 
 
-VkPresentModeKHR PickSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) noexcept
+static VkPresentModeKHR PickSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) noexcept
 {
     // Create configuration file node for this in future
     for (const VkPresentModeKHR& presentMode : availablePresentModes) {
@@ -688,7 +691,7 @@ VkPresentModeKHR PickSwapChainPresentMode(const std::vector<VkPresentModeKHR>& a
 }
 
 
-VkExtent2D PickSwapChainSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t framebufferWidth, uint32_t framebufferHeight) noexcept
+static VkExtent2D PickSwapChainSurfaceExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t framebufferWidth, uint32_t framebufferHeight) noexcept
 {
     if (capabilities.currentExtent.width != std::numeric_limits<decltype(capabilities.currentExtent.width)>::max()) {
         return capabilities.currentExtent;
@@ -826,41 +829,6 @@ void VulkanApplication::TerminateGLFWWindow() noexcept
 }
 
 
-bool VulkanApplication::InitVulkanDebugMessanger(const VkDebugUtilsMessengerCreateInfoEXT& messengerCreateInfo) noexcept
-{
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    if (IsVulkanDebugMessangerInitialized()) {
-        AM_LOG_WARN("Vulkan debug messanger is already initialized");
-        return true;
-    }
-
-    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan debug message callback..."));
-
-    if (CreateDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, &messengerCreateInfo, nullptr, &s_pVulkanState->intance.pDebugMessenger) != VK_SUCCESS) {
-        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan debug callback initialization failed");
-        return false;
-    }
-
-    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan debug message callback initialization finished..."));
-#endif
-    
-    return true;
-}
-
-
-void VulkanApplication::TerminateVulkanDebugCallback() noexcept
-{
-#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
-    if (s_pVulkanState) {
-        VkDebugUtilsMessengerEXT& messanger = s_pVulkanState->intance.pDebugMessenger;
-
-        DestroyDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, messanger, nullptr);
-        messanger = VK_NULL_HANDLE;
-    }
-#endif
-}
-
-
 bool VulkanApplication::InitVulkanInstance() noexcept
 {
     if (IsVulkanInstanceInitialized()) {
@@ -907,7 +875,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
     instCreateInfo.ppEnabledExtensionNames = VULKAN_INST_REQUIRED_EXTENSIONS;
     instCreateInfo.enabledExtensionCount = VULKAN_INST_REQUIRED_EXTENSIONS_COUNT;
     
-    VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessangerCreateInfo = {};
+    VkDebugUtilsMessengerCreateInfoEXT vulkanDebugMessengerCreateInfo = {};
 
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     static constexpr const char* VULKAN_INST_REQUIRED_VALIDATION_LAYERS[] = {
@@ -927,9 +895,9 @@ bool VulkanApplication::InitVulkanInstance() noexcept
     instCreateInfo.ppEnabledLayerNames = VULKAN_INST_REQUIRED_VALIDATION_LAYERS;
     instCreateInfo.enabledLayerCount = VULKAN_INST_REQUIRED_VALIDATION_LAYERS_COUNT;
     
-    vulkanDebugMessangerCreateInfo = CreateVkDebugUtilsMessengerCreateInfo();
+    vulkanDebugMessengerCreateInfo = CreateVkDebugUtilsMessengerCreateInfo();
     
-    instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessangerCreateInfo;
+    instCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vulkanDebugMessengerCreateInfo;
 #endif
 
     if (vkCreateInstance(&instCreateInfo, nullptr, &s_pVulkanState->intance.pInstance) != VK_SUCCESS) {
@@ -937,7 +905,7 @@ bool VulkanApplication::InitVulkanInstance() noexcept
         return false;
     }
 
-    if (!InitVulkanDebugMessanger(vulkanDebugMessangerCreateInfo)) {
+    if (!InitVulkanDebugMessenger(vulkanDebugMessengerCreateInfo)) {
         return false;
     }
 
@@ -959,6 +927,46 @@ void VulkanApplication::TerminateVulkanInstance() noexcept
 }
 
 
+bool VulkanApplication::InitVulkanDebugMessenger(const VkDebugUtilsMessengerCreateInfoEXT& messengerCreateInfo) noexcept
+{
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    if (IsVulkanDebugMessengerInitialized()) {
+        AM_LOG_WARN("Vulkan debug messenger is already initialized");
+        return true;
+    }
+
+    if (s_pVulkanState && s_pVulkanState->intance.pInstance == VK_NULL_HANDLE) {
+        AM_ASSERT_FAIL("Vulkan instance must be initialized before debug messenger initialization");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan debug message callback..."));
+
+    if (CreateDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, &messengerCreateInfo, nullptr, &s_pVulkanState->intance.pDebugMessenger) != VK_SUCCESS) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Vulkan debug callback initialization failed");
+        return false;
+    }
+
+    AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan debug message callback initialization finished..."));
+#endif
+    
+    return true;
+}
+
+
+void VulkanApplication::TerminateVulkanDebugCallback() noexcept
+{
+#if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
+    if (s_pVulkanState) {
+        VkDebugUtilsMessengerEXT& pMessenger = s_pVulkanState->intance.pDebugMessenger;
+
+        DestroyDebugUtilsMessengerEXT(s_pVulkanState->intance.pInstance, pMessenger, nullptr);
+        pMessenger = VK_NULL_HANDLE;
+    }
+#endif
+}
+
+
 bool VulkanApplication::InitVulkanSurface() noexcept
 {
 #if defined(AM_OS_WINDOWS)
@@ -968,12 +976,12 @@ bool VulkanApplication::InitVulkanSurface() noexcept
     }
     
     if (!IsGLFWWindowCreated()) {
-        AM_ASSERT_FAIL("GLFW window is not created. Create it before {}", __FUNCTION__);
+        AM_ASSERT_FAIL("Window must be created before Vulkan surface initialization");
         return false;
     }
 
     if (!IsVulkanInstanceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan Instance is not created. Create it before {}", __FUNCTION__);
+        AM_ASSERT_FAIL("Vulkan instance must be created before surface initialization");
         return false;
     }
 
@@ -1030,7 +1038,7 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(s_pVulkanState->intance.pInstance, &deviceCount, nullptr);
 
-    if (deviceCount <= 0) {
+    if (deviceCount == 0) {
         AM_ASSERT_GRAPHICS_API_FAIL("There are no any physical graphics devices that support Vulkan");
         return false;
     }
@@ -1040,31 +1048,13 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
 
     AM_LOG_GRAPHICS_API_INFO("Picking suitable physical device...");
 
-    struct SuitablePhysicalDevice
-    {
-        VulkanPhysicalDevice physicalDevice;
-        VulkanSwapChainDesc  swapChainDesc;
-    };
-
-    std::multimap<uint64_t, SuitablePhysicalDevice> suitableDevices;
+    std::multimap<uint64_t, VulkanPhysicalDevice, std::greater<uint64_t>> suitableDevices;
     
     for (VkPhysicalDevice pPhysicalDevice : devices) {
-        SuitablePhysicalDevice device = {};
-
-        VulkanPhysicalDevice& physDevice = device.physicalDevice;
-        VulkanSwapChainDesc& swapChainDesc = device.swapChainDesc;
-
-        physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
+        VulkanPhysicalDevice physDevice = GetVulkanPhysicalDeviceInternal(pPhysicalDevice, s_pVulkanState->surface.pSurface);
 
         if (!physDevice.queueFamilyIndices.IsValid()) {
             AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't have required queue families. Skiped.", physDevice.properties.deviceName);
-            continue;
-        }
-
-        swapChainDesc = GetVulkanSwapChainDeviceSurfaceDesc(physDevice, s_pVulkanState->surface);
-        
-        if (!swapChainDesc.IsValid()) {
-            AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't support swap chain with required properties. Skiped.", physDevice.properties.deviceName);
             continue;
         }
 
@@ -1075,16 +1065,27 @@ bool VulkanApplication::InitVulkanPhysicalDevice() noexcept
             continue;
         }
 
-        suitableDevices.insert(std::make_pair(devicePriority, device));
+        suitableDevices.insert(std::make_pair(devicePriority, physDevice));
     }
 
-    if (suitableDevices.empty()) {
-        AM_ASSERT_GRAPHICS_API_FAIL("There are no any Vulkan physical graphics devices that support required properties");
+    for (auto& [priority, physDevice] : suitableDevices) {
+        VulkanSwapChainDesc physDeviceSwapChainDesc = GetVulkanSwapChainDeviceSurfaceDesc(physDevice, s_pVulkanState->surface);
+        
+        if (!physDeviceSwapChainDesc.IsValid()) {
+            AM_LOG_GRAPHICS_API_WARN("Physical device '{}' doesn't support swap chain with required properties. Skiped.", physDevice.properties.deviceName);
+            continue;
+        }
+
+        s_pVulkanState->physicalDevice = std::move(physDevice);
+        s_pVulkanState->swapChain.desc = std::move(physDeviceSwapChainDesc);
+
+        break;
+    }
+
+    if (!s_pVulkanState->swapChain.desc.IsValid()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("There are no any physical devices with required swap chain parameters");
         return false;
     }
-
-    s_pVulkanState->physicalDevice = std::move(suitableDevices.rbegin()->second.physicalDevice);
-    s_pVulkanState->swapChain.desc = std::move(suitableDevices.rbegin()->second.swapChainDesc);
 
     AM_LOG_GRAPHICS_API_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Picked {} physical device\n"), s_pVulkanState->physicalDevice.properties.deviceName);
     
@@ -1140,37 +1141,21 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
     createInfo.ppEnabledExtensionNames = VULKAN_LOGICAL_DEVICE_EXTENSIONS;
     createInfo.enabledExtensionCount = VULKAN_LOGICAL_DEVICE_EXTENSIONS_COUNT;
 
-    static constexpr float VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[VulkanQueueFamilyIndices::COUNT] = {
-        1.0f, 1.0f
-    };
+    std::unordered_set<uint32_t> uniqueQueueFamilyIndices(VulkanQueueFamilyIndices::COUNT);
+    
+    for (int32_t queueFamilyIndex : queueFamilyIndices.indices) {
+        uniqueQueueFamilyIndices.insert(queueFamilyIndex);
+    }
 
     std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfos;
-    
-    const auto CreateVulkanDeviceQueueCreateInfo = [](uint32_t queueFamilyIndex, const float* pPriority) -> VkDeviceQueueCreateInfo
-    {
+    deviceQueueCreateInfos.reserve(uniqueQueueFamilyIndices.size());
+
+    for (uint32_t queueFamilyIndex : uniqueQueueFamilyIndices) {
         VkDeviceQueueCreateInfo queueCreateInfo = {};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
         queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = pPriority;
-
-        return queueCreateInfo;
-    };
-
-    if (queueFamilyIndices.graphicsIndex != queueFamilyIndices.presentIndex) {
-        deviceQueueCreateInfos.reserve(VulkanQueueFamilyIndices::COUNT);
-
-        for (size_t i = 0; i < VulkanQueueFamilyIndices::COUNT; ++i) {
-            const VkDeviceQueueCreateInfo queueCreateInfo = CreateVulkanDeviceQueueCreateInfo(
-                queueFamilyIndices.indices[i], &VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[i]);
-
-            deviceQueueCreateInfos.emplace_back(queueCreateInfo);
-        }
-    } else {
-        deviceQueueCreateInfos.reserve(VulkanQueueFamilyIndices::COUNT - 1);
-
-        const VkDeviceQueueCreateInfo queueCreateInfo = CreateVulkanDeviceQueueCreateInfo(
-            queueFamilyIndices.graphicsIndex, &VULKAN_LOGICAL_DEVICE_QUEUE_PRIORITIES[VulkanQueueFamilyIndices::GRAPHICS_INDEX]);
+        queueCreateInfo.pQueuePriorities = &AM_DEFAULT_QUEUE_PRIORITY;
 
         deviceQueueCreateInfos.emplace_back(queueCreateInfo);
     }
@@ -1188,11 +1173,11 @@ bool VulkanApplication::InitVulkanLogicalDevice() noexcept
     for (uint32_t i = 0; i < VulkanQueueFamilyIndices::COUNT; ++i) {
         const uint32_t queueFamilyIndex = queueFamilyIndices.indices[i];
         
-        VkQueue* ppQueue = &s_pVulkanState->logicalDevice.queues[i];
+        VkQueue& pQueue = s_pVulkanState->logicalDevice.queues[i];
 
-        vkGetDeviceQueue(pDevice, queueFamilyIndex, 0, ppQueue);
+        vkGetDeviceQueue(pDevice, queueFamilyIndex, 0, &pQueue);
 
-        if (*ppQueue == VK_NULL_HANDLE) {
+        if (pQueue == VK_NULL_HANDLE) {
             AM_ASSERT_GRAPHICS_API_FAIL("Failed to get device queue");
             return false;
         }
@@ -1220,16 +1205,6 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
     if (IsVulkanSwapChainInitialized()) {
         AM_LOG_WARN("Vulkan swap chain is already initialized");
         return true;
-    }
-
-    if (!IsGLFWWindowCreated()) {
-        AM_ASSERT_FAIL("Window must be initialized before Vulkan swap chain initialization");
-        return false;
-    }
-
-    if (!IsVulkanPhysicalDeviceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan phisical device must be initialized before swap chain initialization");
-        return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
@@ -1278,7 +1253,7 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
 
     if (queueFamilyIndices.graphicsIndex != queueFamilyIndices.presentIndex) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
+        createInfo.queueFamilyIndexCount = queueFamilyIndices.indices.size();
         createInfo.pQueueFamilyIndices = queueFamilyIndices.indices.data();
     } else {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -1294,17 +1269,19 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
 
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &s_pVulkanState->swapChain.pSwapChain) != VK_SUCCESS) {
+    VkSwapchainKHR& pSwapChain = s_pVulkanState->swapChain.pSwapChain;
+
+    if (vkCreateSwapchainKHR(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &pSwapChain) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Vulkan swap chain creation failed");
         return false;
     }
 
     uint32_t finalImageCount = 0;
-    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, &finalImageCount, nullptr);
+    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, pSwapChain, &finalImageCount, nullptr);
     
     std::vector<VkImage>& swapChainImages = s_pVulkanState->swapChain.images;
     swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, s_pVulkanState->swapChain.pSwapChain, &imageCount, swapChainImages.data());
+    vkGetSwapchainImagesKHR(s_pVulkanState->logicalDevice.pDevice, pSwapChain, &imageCount, swapChainImages.data());
 
     swapChainDesc.currExtent = extent;
     swapChainDesc.currFormat = surfaceFormat.format;
@@ -1361,11 +1338,6 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
     if (IsVulkanRenderPassInitialized()) {
         AM_LOG_WARN("Vulkan render pass is already initialized");
         return true;
-    }
-
-    if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan logical device must be initialized before render pass initialization");
-        return false;
     }
 
     if (!IsVulkanSwapChainInitialized()) {
@@ -1442,16 +1414,6 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
 
     if (!VulkanShaderSystem::IsInitialized()) {
         AM_ASSERT_FAIL("VulkanShaderSystem must be initialized before graphics pipeline initialization");
-        return false;
-    }
-
-    if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan logical device must be initialized before graphics pipeline initialization");
-        return false;
-    }
-
-    if (!IsVulkanSwapChainInitialized()) {
-        AM_ASSERT_FAIL("Vulkan swap chain must be initialized before graphics pipeline initialization");
         return false;
     }
 
@@ -1657,11 +1619,6 @@ bool VulkanApplication::InitVulkanFramebuffers() noexcept
         return true;
     }
 
-    if (!IsVulkanLogicalDeviceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan logical device must be initialized before framebuffers initialization");
-        return false;
-    }
-
     if (!IsVulkanSwapChainInitialized()) {
         AM_ASSERT_FAIL("Vulkan swap chain must be initialized before framebuffers initialization");
         return false;
@@ -1725,11 +1682,6 @@ bool VulkanApplication::InitVulkanCommandPool() noexcept
     if (IsVulkanCommandPoolInitialized()) {
         AM_LOG_WARN("Vulkan command pool is already initialized");
         return true;
-    }
-
-    if (!IsVulkanPhysicalDeviceInitialized()) {
-        AM_ASSERT_FAIL("Vulkan physical device must be initialized before command pool initialization");
-        return false;
     }
 
     if (!IsVulkanLogicalDeviceInitialized()) {
@@ -1986,7 +1938,7 @@ bool VulkanApplication::IsGLFWWindowCreated() noexcept
 }
 
 
-bool VulkanApplication::IsVulkanDebugMessangerInitialized() noexcept
+bool VulkanApplication::IsVulkanDebugMessengerInitialized() noexcept
 {
 #if defined(AM_VK_VALIDATION_LAYERS_ENABLED)
     return s_pVulkanState && s_pVulkanState->intance.pDebugMessenger != VK_NULL_HANDLE;
@@ -1997,7 +1949,7 @@ bool VulkanApplication::IsVulkanDebugMessangerInitialized() noexcept
 
 bool VulkanApplication::IsVulkanInstanceInitialized() noexcept
 {
-    return s_pVulkanState && s_pVulkanState->intance.pInstance != VK_NULL_HANDLE && IsVulkanDebugMessangerInitialized();
+    return s_pVulkanState && s_pVulkanState->intance.pInstance != VK_NULL_HANDLE && IsVulkanDebugMessengerInitialized();
 }
 
 

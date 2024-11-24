@@ -198,11 +198,11 @@ private:
     static bool CreateGLFWWindow(const AppWindowInitInfo& initInfo) noexcept;
     static void TerminateGLFWWindow() noexcept;
 
-    static bool InitVulkanDebugMessanger(const VkDebugUtilsMessengerCreateInfoEXT& messengerCreateInfo) noexcept;
-    static void TerminateVulkanDebugCallback() noexcept;
-
     static bool InitVulkanInstance() noexcept;
     static void TerminateVulkanInstance() noexcept;
+
+    static bool InitVulkanDebugMessenger(const VkDebugUtilsMessengerCreateInfoEXT& messengerCreateInfo) noexcept;
+    static void TerminateVulkanDebugCallback() noexcept;
     
     static bool InitVulkanSurface() noexcept;
     static void TerminateVulkanSurface() noexcept;
@@ -239,7 +239,7 @@ private:
 
     static bool IsGLFWWindowCreated() noexcept;
 
-    static bool IsVulkanDebugMessangerInitialized() noexcept;
+    static bool IsVulkanDebugMessengerInitialized() noexcept;
     static bool IsVulkanInstanceInitialized() noexcept;
     static bool IsVulkanSurfaceInitialized() noexcept;
     static bool IsVulkanPhysicalDeviceInitialized() noexcept;
@@ -283,8 +283,7 @@ private:
         VulkanCommandPool       commandPool;
 
         std::array<VulkanCommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBufferArray;
-        
-        std::array<VulkanSyncObjects, MAX_FRAMES_IN_FLIGHT>   syncObjectsArray;
+        std::array<VulkanSyncObjects,   MAX_FRAMES_IN_FLIGHT> syncObjectsArray;
     };
     static inline std::unique_ptr<VulkanState> s_pVulkanState = nullptr;
 
