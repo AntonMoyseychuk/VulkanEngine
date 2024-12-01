@@ -554,7 +554,7 @@ static VulkanQueueFamilyIndices FindRequiredVulkanQueueFamilyIndices(VulkanPhysi
 
     VulkanQueueFamilyIndices indices;
 
-    for (int32_t i = 0; i < physDeviceQueueFamilies.size(); ++i) {
+    for (size_t i = 0; i < physDeviceQueueFamilies.size(); ++i) {
         const VkQueueFamilyProperties& familyProps = physDeviceQueueFamilies[i];
 
         if (familyProps.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
@@ -699,7 +699,7 @@ static VkExtent2D PickSwapChainSurfaceExtent(const VkSurfaceCapabilitiesKHR& cap
 
     VkExtent2D actualExtent = {};
     actualExtent.width = std::clamp(framebufferWidth, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-    actualExtent.height = std::clamp(framebufferWidth, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    actualExtent.height = std::clamp(framebufferHeight, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     
     return actualExtent; 
 }
@@ -1291,19 +1291,19 @@ bool VulkanApplication::InitVulkanSwapChain() noexcept
 
     for (size_t i = 0; i < swapChainImageViews.size(); ++i) {
         VkImageViewCreateInfo createInfo = {};
-        createInfo.sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image        = swapChainImages[i];
-        createInfo.viewType     = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format       = s_pVulkanState->swapChain.desc.currFormat;
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image = swapChainImages[i];
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format = s_pVulkanState->swapChain.desc.currFormat;
         createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.subresourceRange.aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel    = 0;
-        createInfo.subresourceRange.levelCount      = 1;
-        createInfo.subresourceRange.baseArrayLayer  = 0;
-        createInfo.subresourceRange.layerCount      = 1;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = 1;
 
         if (vkCreateImageView(s_pVulkanState->logicalDevice.pDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
             AM_ASSERT_GRAPHICS_API_FAIL("Vulkan image view {} creation failed", i);
@@ -1440,7 +1440,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     {
         ShaderIDProxy vsIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.vs").string(), {}, optimizationLevel);
         if (shaderSystem.m_shaderModules.find(vsIdProxy) == shaderSystem.m_shaderModules.cend()) {
-            AM_ASSERT_GRAPHICS_API_FAIL("Can't find shader module");
+            AM_ASSERT_GRAPHICS_API_FAIL("Can't find vertex shader module");
             abort();
         }
         vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
@@ -1454,7 +1454,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     {
         ShaderIDProxy psIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.fs").string(), {}, optimizationLevel);
         if (shaderSystem.m_shaderModules.find(psIdProxy) == shaderSystem.m_shaderModules.cend()) {
-            AM_ASSERT_GRAPHICS_API_FAIL("Can't find shader module");
+            AM_ASSERT_GRAPHICS_API_FAIL("Can't find pixel shader module");
             abort();
         }    
         pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
@@ -2202,7 +2202,7 @@ void VulkanApplication::RenderFrame() noexcept
     vkWaitForFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence, VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    VkResult acquireResult = vkAcquireNextImageKHR(logicalDevice.pDevice, swapChain.pSwapChain, UINT64_MAX, 
+    AM_MAYBE_UNUSED VkResult acquireResult = vkAcquireNextImageKHR(logicalDevice.pDevice, swapChain.pSwapChain, UINT64_MAX, 
         syncObjects.pImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
     vkResetFences(logicalDevice.pDevice, 1, &syncObjects.pInFlightFence);
@@ -2257,7 +2257,7 @@ void VulkanApplication::RenderFrame() noexcept
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
-    VkResult vulkanPresentResult = vkQueuePresentKHR(logicalDevice.presentQueue, &presentInfo);
+    AM_MAYBE_UNUSED VkResult vulkanPresentResult = vkQueuePresentKHR(logicalDevice.presentQueue, &presentInfo);
 
     IncFrameIndex();
 }

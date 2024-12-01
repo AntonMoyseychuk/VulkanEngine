@@ -140,7 +140,6 @@ void VulkanShaderCache::AddCacheEntryToSubmitBuffer(ShaderIDProxy idProxy, const
     m_cacheStorage.resize(newStorageSize);
 
     uint8_t* pStorageBeginU8  = m_cacheStorage.data();
-    uint8_t* pStorageEndU8    = m_cacheStorage.data() + m_cacheStorage.size();
 
     uint8_t* pCacheEntrySizeBuffer = pStorageBeginU8 + oldStorageSize;
     memcpy_s(pCacheEntrySizeBuffer, sizeof(uint32_t), &codeSize, sizeof(uint32_t));

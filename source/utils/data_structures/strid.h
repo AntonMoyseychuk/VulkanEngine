@@ -28,7 +28,7 @@ namespace ds
 
         const StringType* Load(uint64_t id) const noexcept;
 
-        const bool IsExist(uint64_t id) const noexcept { return m_storage.find(id) != m_storage.cend(); }
+        bool IsExist(uint64_t id) const noexcept { return m_storage.find(id) != m_storage.cend(); }
 
     public:
         static uint64_t GetInvalidIDHash() noexcept { return INVALID_ID_HASH; }

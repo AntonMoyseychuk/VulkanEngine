@@ -273,7 +273,7 @@ static bool AssembleShaderToSPIRV(std::vector<uint8_t>& buffer, const VulkanShad
 }
 
 
-static std::vector<uint8_t> BuildSPIRVCodeFormFile(const VulkanShaderGroupSetup& setup, const ShaderID& shaderId) noexcept
+static std::vector<uint8_t> BuildSPIRVCodeFromFile(const VulkanShaderGroupSetup& setup, const ShaderID& shaderId) noexcept
 {
     AM_ASSERT_GRAPHICS_API(shaderId.IsHashValid(), "Invalid shaderId");
 
@@ -358,7 +358,7 @@ static VkShaderModule CreateVulkanShaderModule(VkDevice pLogicalDevice, const ui
 
 static VkShaderModule CreateVulkanShaderModule(VkDevice pLogicalDevice, const VulkanShaderGroupSetup& setup, const ShaderID &id) noexcept
 {
-    std::vector<uint8_t> compiledCode = BuildSPIRVCodeFormFile(setup, id);
+    std::vector<uint8_t> compiledCode = BuildSPIRVCodeFromFile(setup, id);
     return CreateVulkanShaderModule(pLogicalDevice, (const uint32_t*)compiledCode.data(), compiledCode.size());
 }
 
@@ -580,7 +580,7 @@ bool VulkanShaderSystem::BuildAndAddShaderModule(const VulkanShaderGroupSetup* p
 {
     AM_ASSERT_GRAPHICS_API(pSetup, "pSetup is nullptr");
 
-    const std::vector<uint8_t> spirvCode = BuildSPIRVCodeFormFile(*pSetup, shaderId);
+    const std::vector<uint8_t> spirvCode = BuildSPIRVCodeFromFile(*pSetup, shaderId);
 
     VkShaderModule pShaderModule = CreateVulkanShaderModule(s_pLogicalDevice, (const uint32_t*)spirvCode.data(), spirvCode.size());
 
