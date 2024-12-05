@@ -1425,43 +1425,20 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_YELLOW_ASCII_CODE, "Initializing Vulkan graphics pipeline..."));
 
     VulkanShaderSystem& shaderSystem = VulkanShaderSystem::Instance();
-    
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    VulkanSwapChain& swapChain = s_pVulkanState->swapChain;
 
-    // Temp solution
-#if defined(AM_DEBUG)
-    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_NONE; 
-#elif defined(AM_RELEASE)
-    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
-#endif
+    VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+    VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
 
-    {
-        ShaderIDProxy vsIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.vs").string(), {}, optimizationLevel);
-        if (shaderSystem.m_shaderModules.find(vsIdProxy) == shaderSystem.m_shaderModules.cend()) {
-            AM_ASSERT_GRAPHICS_API_FAIL("Can't find vertex shader module");
-            abort();
-        }
-        vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
-    }
-    vertShaderStageInfo.pName = "main";
+    VkDynamicState dynamicStates[] = { 
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
 
-    VkPipelineShaderStageCreateInfo pixShaderStageInfo = {};
-    pixShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    {
-        ShaderIDProxy psIdProxy = ShaderID((PathSystem::GetProjectShadersSourceCodeDirectory() / "base\\base.fs").string(), {}, optimizationLevel);
-        if (shaderSystem.m_shaderModules.find(psIdProxy) == shaderSystem.m_shaderModules.cend()) {
-            AM_ASSERT_GRAPHICS_API_FAIL("Can't find pixel shader module");
-            abort();
-        }    
-        pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
-    }
-    pixShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, pixShaderStageInfo };
+    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+    dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+    dynamicStateCreateInfo.dynamicStateCount = _countof(dynamicStates);
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -1478,14 +1455,14 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     VkViewport viewportInfo = {};
     viewportInfo.x = 0.0f;
     viewportInfo.y = 0.0f;
-    viewportInfo.width = s_pVulkanState->swapChain.desc.currExtent.width;
-    viewportInfo.height = s_pVulkanState->swapChain.desc.currExtent.height;
+    viewportInfo.width = swapChain.desc.currExtent.width;
+    viewportInfo.height = swapChain.desc.currExtent.height;
     viewportInfo.minDepth = 0.0f;
     viewportInfo.maxDepth = 1.0f;
 
     VkRect2D scissorInfo = {};
     scissorInfo.offset = { 0, 0 };
-    scissorInfo.extent = s_pVulkanState->swapChain.desc.currExtent;
+    scissorInfo.extent = swapChain.desc.currExtent;
 
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
     viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1537,16 +1514,6 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     colorBlendingCreateInfo.blendConstants[2] = 0.0f;
     colorBlendingCreateInfo.blendConstants[3] = 0.0f;
 
-    VkDynamicState dynamicStates[] = { 
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
-    dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicStateCreateInfo.pDynamicStates = dynamicStates;
-    dynamicStateCreateInfo.dynamicStateCount = _countof(dynamicStates);
-
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 0;
@@ -1554,13 +1521,45 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
     pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
 
-    VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
-    VkPipelineLayout& pPipelineLayout = s_pVulkanState->graphicsPipeline.pLayout;
-
     if (vkCreatePipelineLayout(pLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &pPipelineLayout) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Vulkan pipeline layout creation failed");
         return false;
     }
+
+    // Temp solution
+    const fs::path& shadersSourceCodeDir = PathSystem::GetProjectShadersSourceCodeDirectory();
+
+#if defined(AM_DEBUG)
+    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_NONE; 
+#elif defined(AM_RELEASE)
+    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
+#endif
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+
+    ShaderIDProxy vsIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.vs").string(), {}, optimizationLevel);
+    if (shaderSystem.m_shaderModules.find(vsIdProxy) == shaderSystem.m_shaderModules.cend()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Can't find vertex shader module");
+        return false;
+    }
+    vertShaderStageInfo.module = shaderSystem.m_shaderModules[vsIdProxy];
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo pixShaderStageInfo = {};
+    pixShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    ShaderIDProxy psIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.fs").string(), {}, optimizationLevel);
+    if (shaderSystem.m_shaderModules.find(psIdProxy) == shaderSystem.m_shaderModules.cend()) {
+        AM_ASSERT_GRAPHICS_API_FAIL("Can't find pixel shader module");
+        return false;
+    }    
+    pixShaderStageInfo.module = shaderSystem.m_shaderModules[psIdProxy];
+    pixShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, pixShaderStageInfo };
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
     pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

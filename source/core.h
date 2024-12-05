@@ -43,6 +43,19 @@
 #endif
 
 
+#if defined(_MSC_VER) && !defined(__INLINING__)
+  #define AM_FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+  #if __cplusplus >= 201703L
+    #define AM_FORCE_INLINE [[nodiscard]] __attribute__((always_inline))
+  #else
+    #define AM_FORCE_INLINE __attribute__((always_inline))
+  #endif
+#else
+  #define AM_FORCE_INLINE inline
+#endif
+
+
 #if __cplusplus == 201703L
   // From C++17
   #define AM_MAYBE_UNUSED [[maybe_unused]]
