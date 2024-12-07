@@ -11,6 +11,15 @@
 #include <memory>
 
 
+enum ShaderOptimizationLevel
+{
+    SHADER_OPTIMIZATION_LEVEL_NONE,
+    SHADER_OPTIMIZATION_LEVEL_SPEED,
+    SHADER_OPTIMIZATION_LEVEL_SIZE,
+    SHADER_OPTIMIZATION_LEVEL_COUNT
+};
+
+
 class VulkanShaderGroupSetup;
 
 
@@ -25,6 +34,8 @@ public:
     static void Terminate() noexcept;
 
     static bool IsInitialized() noexcept;
+
+    static ShaderOptimizationLevel GetOptimizationLevel() noexcept;
 
     VulkanShaderSystem(const VulkanShaderSystem& sys) = delete;
     VulkanShaderSystem& operator=(const VulkanShaderSystem& sys) = delete;

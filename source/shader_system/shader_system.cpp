@@ -12,13 +12,6 @@
 #include <shaderc/shaderc.hpp>
 
 
-#if defined(AM_DEBUG)
-    static constexpr ShaderID::OptimizationLevel AM_SHADERC_OPTIMIZATION_LEVEL = ShaderID::OPTIMIZATION_LEVEL_NONE; 
-#elif defined(AM_RELEASE)
-    static constexpr ShaderID::OptimizationLevel AM_SHADERC_OPTIMIZATION_LEVEL = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
-#endif
-
-
 static constexpr const char* JSON_SHADER_SETUP_DEFINES_FIELD_NAME           = "defines";
 static constexpr const char* JSON_SHADER_SETUP_DEFINES_CONDITION_FIELD_NAME = "condition";
 static constexpr const char* JSON_SHADER_SETUP_DEFINES_TYPE_FIELD_NAME      = "type";
@@ -34,6 +27,13 @@ static constexpr uint32_t AM_PIXEL_SHADER_MASK  = 0x2;
 
 
 static shaderc::Compiler g_shadercCompiler;
+
+
+#if defined(AM_DEBUG)
+    static constexpr ShaderOptimizationLevel g_shaderOptimaizationLevelValue = SHADER_OPTIMIZATION_LEVEL_NONE; 
+#elif defined(AM_RELEASE)
+    static constexpr ShaderOptimizationLevel g_shaderOptimaizationLevelValue = SHADER_OPTIMIZATION_LEVEL_SPEED; 
+#endif
 
 
 struct VulkanShaderGroupFilepaths
@@ -91,9 +91,9 @@ struct VulkanShaderBuildInfo
         return pShaderId && pShaderId->IsHashValid() && (kind == shaderc_vertex_shader || kind == shaderc_fragment_shader);
     }
 
+    shaderc::CompileOptions compileOptions;
     const ShaderID* pShaderId = nullptr;
     shaderc_shader_kind kind;
-    shaderc::CompileOptions compileOptions;
 };
 
 
@@ -111,16 +111,16 @@ static bool IsVertexShaderFile(const fs::path& filepath) noexcept
 }
 
 
-static shaderc_optimization_level ShaderIdOptimizationLevelToShadercLevel(ShaderID::OptimizationLevel level) noexcept
+static shaderc_optimization_level ShaderOptimizationLevelToShadercLevel(ShaderOptimizationLevel level) noexcept
 {
-    AM_ASSERT_GRAPHICS_API(level < ShaderID::OPTIMIZATION_LEVEL_COUNT, "Invalid optimization level ({})", static_cast<uint32_t>(level));
+    AM_ASSERT_GRAPHICS_API(level < SHADER_OPTIMIZATION_LEVEL_COUNT, "Invalid optimization level ({})", static_cast<uint32_t>(level));
     
     switch(level) {
-    case ShaderID::OPTIMIZATION_LEVEL_NONE:
+    case SHADER_OPTIMIZATION_LEVEL_NONE:
         return shaderc_optimization_level_zero;    
-    case ShaderID::OPTIMIZATION_LEVEL_SPEED:
+    case SHADER_OPTIMIZATION_LEVEL_SPEED:
         return shaderc_optimization_level_performance;
-    case ShaderID::OPTIMIZATION_LEVEL_SIZE:
+    case SHADER_OPTIMIZATION_LEVEL_SIZE:
         return shaderc_optimization_level_size;
     default:
         return shaderc_optimization_level_zero;
@@ -284,7 +284,7 @@ static std::vector<uint8_t> BuildSPIRVCodeFromFile(const VulkanShaderGroupSetup&
     AM_ASSERT_GRAPHICS_API(shaderKind.has_value(), "Invalid shader kind");
     buildInfo.kind = shaderKind.value();
 
-    buildInfo.compileOptions.SetOptimizationLevel(ShaderIdOptimizationLevelToShadercLevel(shaderId.GetOptimizationLevel()));
+    buildInfo.compileOptions.SetOptimizationLevel(ShaderOptimizationLevelToShadercLevel(VulkanShaderSystem::GetOptimizationLevel()));
 
     const auto FillCompileOptionsDefines = [&shaderId, &buildInfo](const std::vector<VulkanShaderDefine>& definesPool, const std::vector<size_t>& indices)
     {
@@ -450,6 +450,12 @@ bool VulkanShaderSystem::IsInitialized() noexcept
 }
 
 
+ShaderOptimizationLevel VulkanShaderSystem::GetOptimizationLevel() noexcept
+{
+    return g_shaderOptimaizationLevelValue;
+}
+
+
 void VulkanShaderSystem::RecompileShaders() noexcept
 {
     CompileShaders(true);
@@ -536,7 +542,7 @@ void VulkanShaderSystem::CompileShaders(bool forceRecompile) noexcept
     const auto CreateAllCombinationsShaderModules = [this](const VulkanShaderGroupSetup& setup, 
         const std::vector<size_t>& indices, ds::StrID shaderFilepath, bool forceRecompile) -> bool
     {
-        ShaderID shaderId(shaderFilepath, {}, AM_SHADERC_OPTIMIZATION_LEVEL);
+        ShaderID shaderId(shaderFilepath, {});
 
         bool newShaderCacheEntry = false;
 

@@ -1529,17 +1529,11 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     // Temp solution
     const fs::path& shadersSourceCodeDir = PathSystem::GetProjectShadersSourceCodeDirectory();
 
-#if defined(AM_DEBUG)
-    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_NONE; 
-#elif defined(AM_RELEASE)
-    static constexpr ShaderID::OptimizationLevel optimizationLevel = ShaderID::OPTIMIZATION_LEVEL_SPEED; 
-#endif
-
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 
-    ShaderIDProxy vsIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.vs").string(), {}, optimizationLevel);
+    ShaderIDProxy vsIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.vs").string(), {});
     if (shaderSystem.m_shaderModules.find(vsIdProxy) == shaderSystem.m_shaderModules.cend()) {
         AM_ASSERT_GRAPHICS_API_FAIL("Can't find vertex shader module");
         return false;
@@ -1551,7 +1545,7 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
     pixShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     pixShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    ShaderIDProxy psIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.fs").string(), {}, optimizationLevel);
+    ShaderIDProxy psIdProxy = ShaderID((shadersSourceCodeDir / "base\\base.fs").string(), {});
     if (shaderSystem.m_shaderModules.find(psIdProxy) == shaderSystem.m_shaderModules.cend()) {
         AM_ASSERT_GRAPHICS_API_FAIL("Can't find pixel shader module");
         return false;
