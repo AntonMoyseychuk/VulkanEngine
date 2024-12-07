@@ -3,7 +3,8 @@ namespace ds
     template <typename ElemT>
     inline StrIDDataStorage<ElemT>::StrIDDataStorage()
     {
-        m_storage.reserve(PREALLOCATED_IDS_COUNT);
+        m_strBufLocations.reserve(PREALLOCATED_IDS_COUNT);
+        m_storage.resize(PREALLOCATED_STORAGE_SIZE);
     }
 
 
@@ -17,7 +18,23 @@ namespace ds
         const uint64_t id = amHash(str);
 
         if (!IsExist(id)) {
-            m_storage[id] = str;
+            StringBufLocation& newStrBufLocation = m_strBufLocations[id];
+            
+            newStrBufLocation.length = str.length() + 1; // including null terminator
+
+            if (m_lastAllocatedID != INVALID_ID_HASH) {
+                const StringBufLocation& lastStrBufLocation = m_strBufLocations[m_lastAllocatedID];
+
+                newStrBufLocation.offset = lastStrBufLocation.offset + lastStrBufLocation.length;
+            }
+            
+            if (newStrBufLocation.offset + newStrBufLocation.length > m_storage.size()) {
+                m_storage.resize(m_storage.size() * 2ull);
+            }
+
+            std::copy_n(str.begin(), newStrBufLocation.length - 1, m_storage.begin() + newStrBufLocation.offset);
+
+            m_lastAllocatedID = id;
         }
 
         return id;
@@ -25,11 +42,11 @@ namespace ds
 
 
     template <typename ElemT>
-    inline const typename StrIDDataStorage<ElemT>::StringType* StrIDDataStorage<ElemT>::Load(uint64_t id) const noexcept
+    inline const typename StrIDDataStorage<ElemT>::ElementType* StrIDDataStorage<ElemT>::Load(uint64_t id) const noexcept
     {
-        const auto result = m_storage.find(id);
+        const auto strBufLocationIt = m_strBufLocations.find(id);
 
-        return result == m_storage.cend() ? nullptr : &result->second;
+        return strBufLocationIt == m_strBufLocations.cend() ? nullptr : m_storage.data() + strBufLocationIt->second.offset;
     }
 
 
@@ -65,8 +82,6 @@ namespace ds
     template <typename ElemT>
     inline const ElemT* StrIDImpl<ElemT>::CStr() const noexcept
     {
-        const StringType* pResult = s_storage.Load(m_id);
-            
-        return pResult ? pResult->c_str() : nullptr;
+        return s_storage.Load(m_id);
     }
 }

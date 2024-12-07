@@ -14,6 +14,9 @@ namespace ds
     template <typename ElemT>
     class StrIDDataStorage
     {
+        template <typename T>
+        friend class StrIDImpl;
+
     private:
         using ElementType = ElemT;
         using StringViewType = std::basic_string_view<ElementType>;
@@ -26,16 +29,16 @@ namespace ds
         uint64_t Store(const ElementType* str)    noexcept { return Store(StringViewType(str)); }
         uint64_t Store(const StringType& str)     noexcept { return Store(StringViewType(str)); }
 
-        const StringType* Load(uint64_t id) const noexcept;
+        const ElementType* Load(uint64_t id) const noexcept;
 
-        bool IsExist(uint64_t id) const noexcept { return m_storage.find(id) != m_storage.cend(); }
-
-    public:
-        static uint64_t GetInvalidIDHash() noexcept { return INVALID_ID_HASH; }
+        bool IsExist(uint64_t id) const noexcept { return m_strBufLocations.find(id) != m_strBufLocations.cend(); }
 
     private:
         static inline constexpr uint64_t INVALID_ID_HASH = std::numeric_limits<uint64_t>::max();
-        static inline constexpr size_t PREALLOCATED_IDS_COUNT = 2048;
+        static inline constexpr size_t PREALLOCATED_IDS_COUNT = 8192ull;
+        
+        static inline constexpr size_t AVERAGE_STR_SIZE = 32ull;
+        static inline constexpr size_t PREALLOCATED_STORAGE_SIZE = PREALLOCATED_IDS_COUNT * AVERAGE_STR_SIZE;
 
     private:
         // We generate a unique hash in the Store method, and we don't want to hash the already unique value again, 
@@ -45,7 +48,15 @@ namespace ds
             inline constexpr uint64_t operator()(uint64_t id) const noexcept { return id; }
         };
 
-        std::unordered_map<uint64_t, StringType, StringIdHasher> m_storage;
+        struct StringBufLocation
+        {
+            uint32_t offset;
+            uint32_t length;
+        };
+
+        std::unordered_map<uint64_t, StringBufLocation, StringIdHasher> m_strBufLocations;
+        std::vector<ElementType> m_storage;
+        uint64_t m_lastAllocatedID = INVALID_ID_HASH;
     };
 
 
@@ -72,8 +83,6 @@ namespace ds
 
         const ElementType* CStr() const noexcept;
 
-        const StringType* String() const noexcept { return s_storage.Load(m_id); }
-
         bool operator==(StrIDImpl strId) const noexcept { return m_id == strId.m_id; }
         bool operator!=(StrIDImpl strId) const noexcept { return m_id != strId.m_id; }
         bool operator<(StrIDImpl strId) const noexcept { return m_id < strId.m_id; }
@@ -84,13 +93,13 @@ namespace ds
         uint64_t GetId() const noexcept { return m_id; }
         uint64_t Hash() const noexcept { return m_id; }
 
-        bool IsValid() const noexcept { return m_id != StrIDDataStorageType::GetInvalidIDHash(); }
+        bool IsValid() const noexcept { return m_id != StrIDDataStorageType::INVALID_ID_HASH; }
 
     private:
         static inline StrIDDataStorageType s_storage;
 
     private:
-        uint64_t m_id = StrIDDataStorageType::GetInvalidIDHash();
+        uint64_t m_id = StrIDDataStorageType::INVALID_ID_HASH;
     };
 
 

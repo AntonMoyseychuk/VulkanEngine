@@ -152,7 +152,7 @@ static std::optional<shaderc_shader_kind> GetShaderCShaderKind(const ShaderID& s
 {
     AM_ASSERT_GRAPHICS_API(shaderId.IsHashValid(), "shaderId is invalid");
 
-    const fs::path shaderFilepath = *shaderId.GetFilepath().String();
+    const fs::path shaderFilepath = shaderId.GetFilepath().CStr();
 
     if (IsVertexShaderFile(shaderFilepath)) {
         return shaderc_vertex_shader;
