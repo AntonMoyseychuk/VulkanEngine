@@ -74,8 +74,6 @@ bool Logger::Init()
         return true;
     }
 
-    s_pDefaultLogger = CreateDefaultSpdlogger();
-
     s_pInst = std::unique_ptr<Logger>(new Logger);
 
     return s_pInst != nullptr;

@@ -403,7 +403,7 @@ static std::vector<VulkanShaderGroupFilepaths> GetShaderGroupFilepathsList(const
 
 VulkanShaderSystem& VulkanShaderSystem::Instance() noexcept
 {
-    AM_ASSERT(s_pShaderSysInstance != nullptr, "Vulkan shader system is not initialized, call VulkanShaderSystem::Init(...) first");
+    AM_ASSERT(s_pShaderSysInstance != nullptr, "Vulkan shader system is not initialized, call VulkanShaderSystem::Init first");
     
     return *s_pShaderSysInstance;
 }

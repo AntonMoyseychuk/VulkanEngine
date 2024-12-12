@@ -794,7 +794,7 @@ bool VulkanApplication::CreateGLFWWindow(const AppWindowInitInfo &initInfo) noex
 
 #if defined(AM_LOGGING_ENABLED)
     glfwSetErrorCallback([](int errorCode, const char* description) -> void {
-        AM_LOG_WINDOW_ERROR("{} (code: {})", description, errorCode);
+        AM_ASSERT_WINDOW_FAIL("{} (code: {})", description, errorCode);
     });
 #endif
     
@@ -1371,9 +1371,6 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassInfo;
 
-    VkDevice pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
-    VkRenderPass& pRenderPass = s_pVulkanState->renderPass.pRenderPass;
-
     VkSubpassDependency subpassDependency = {};
     subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     subpassDependency.dstSubpass = 0;
@@ -1384,6 +1381,9 @@ bool VulkanApplication::InitVulkanRenderPass() noexcept
 
     renderPassCreateInfo.dependencyCount = 1;
     renderPassCreateInfo.pDependencies = &subpassDependency;
+
+    VkDevice& pLogicalDevice = s_pVulkanState->logicalDevice.pDevice;
+    VkRenderPass& pRenderPass = s_pVulkanState->renderPass.pRenderPass;
 
     if (vkCreateRenderPass(pLogicalDevice, &renderPassCreateInfo, nullptr, &pRenderPass) != VK_SUCCESS) {
         AM_ASSERT_GRAPHICS_API_FAIL("Vulkan render pass creation failed");
@@ -1579,7 +1579,6 @@ bool VulkanApplication::InitVulkanGraphicsPipeline() noexcept
         AM_ASSERT_GRAPHICS_API_FAIL("Vulkan pipeline creation failed");
         return false;
     }
-
 
     AM_LOG_INFO(AM_MAKE_COLORED_TEXT(AM_OUTPUT_COLOR_GREEN_ASCII_CODE, "Vulkan graphics pipeline initialization finished"));
 
@@ -1861,13 +1860,14 @@ bool VulkanApplication::InitVulkan() noexcept
         return false;
     }
 
-    if (!VulkanShaderSystem::Init(s_pVulkanState->logicalDevice.pDevice)) {
-        return false;
-    }
-
     if (!InitVulkanSwapChain()) {
         return false;
     }
+
+    if (!VulkanShaderSystem::Init(s_pVulkanState->logicalDevice.pDevice)) {
+        return false;
+    }
+    VulkanShaderSystem& shaderSys = VulkanShaderSystem::Instance();
 
     if (!InitVulkanRenderPass()) {
         return false;
@@ -1876,6 +1876,8 @@ bool VulkanApplication::InitVulkan() noexcept
     if (!InitVulkanGraphicsPipeline()) {
         return false;
     }
+
+    shaderSys.ClearVulkanShaderModules();
 
     if (!InitVulkanFramebuffers()) {
         return false;

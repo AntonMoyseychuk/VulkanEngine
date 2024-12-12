@@ -66,7 +66,7 @@ private:
 
 private:
     static inline std::unique_ptr<Logger> s_pInst = nullptr;
-    static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = nullptr;
+    static inline std::shared_ptr<spdlog::logger> s_pDefaultLogger = CreateDefaultSpdlogger();
 
 private:
     std::vector<std::shared_ptr<spdlog::logger>> m_loggers;
